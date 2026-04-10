@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: dotacion
+
+
+
+gg:
+  jte:
+    templateLocation: src/main/resources/templates
+    usePrecompiledTemplates: true
