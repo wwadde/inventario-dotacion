@@ -1,24 +1,113 @@
-<section class="metric-grid">
-  <article class="panel metric-card">
-    <p class="metric-label">Empleados activos</p>
-    <p class="metric-value">{{ dashboard()?.totalActiveEmployees ?? 0 }}</p>
+<section class="panel cockpit-panel">
+  <div class="panel-head cockpit-head">
+    <div>
+      <h2>Centro operativo del dia</h2>
+      <p class="muted">Visualiza prioridades, cobertura y entra en un clic a los modulos de trabajo.</p>
+    </div>
+
+    <div class="quick-actions" role="navigation" aria-label="Atajos de operacion">
+      <button type="button" class="ghost-button" (click)="openView.emit('deliveries-implementos')">Registrar entrega</button>
+      <button type="button" class="ghost-button" (click)="openView.emit('reports')">Ver reporte</button>
+    </div>
+  </div>
+
+  <div class="cockpit-grid">
+    <article class="kpi-card kpi-card-main" [class.kpi-card-main-ok]="complianceCoveragePercent() >= 80">
+      <p class="kpi-label">Cobertura de cumplimiento</p>
+      <p class="kpi-value">{{ complianceCoveragePercent() }}%</p>
+      <div class="progress-track" aria-hidden="true">
+        <span class="progress-fill" [style.width.%]="complianceCoveragePercent()"></span>
+      </div>
+      <p class="kpi-copy">{{ upToDateEmployeesCount() }} de {{ activeEmployeesCount() }} empleados estan al dia.</p>
+    </article>
+
+    <article class="kpi-card kpi-card-alert">
+      <p class="kpi-label">Atencion prioritaria</p>
+      <p class="kpi-value">{{ pendingRequirementTotal() }}</p>
+      <div class="progress-track progress-track-soft" aria-hidden="true">
+        <span class="progress-fill progress-fill-warn" [style.width.%]="pendingRequirementsPercent()"></span>
+      </div>
+      <p class="kpi-copy">
+        {{ deliveredRequirementsTotal() }} entregados y {{ pendingRequirementTotal() }} pendientes
+        ({{ deliveredRequirementsPercent() }}% vs {{ pendingRequirementsPercent() }}%).
+      </p>
+    </article>
+
+    <article class="kpi-card kpi-card-roadmap">
+      <p class="kpi-label">Pulso diario</p>
+      <p class="kpi-value">{{ birthdaysToday() }}</p>
+      <p class="kpi-copy">
+        Cumpleanos detectados hoy. El sistema ya prepara recordatorios automaticos para mantener la comunicacion activa.
+      </p>
+      <button type="button" class="ghost-button" (click)="openView.emit('reports')">Ver detalle operativo</button>
+    </article>
+  </div>
+</section>
+
+<section class="insight-grid">
+  <article class="panel chart-card">
+    <div class="panel-head">
+      <h2>Cumplimiento general</h2>
+      <span>{{ complianceCoveragePercent() }}%</span>
+    </div>
+
+    <div class="donut-layout">
+      <div class="donut-chart" [style.background]="coverageDonutBackground()" aria-hidden="true">
+        <div class="donut-hole">
+          <strong>{{ complianceCoveragePercent() }}%</strong>
+          <span>al dia</span>
+        </div>
+      </div>
+
+      <div class="chart-legend">
+        <p><span class="legend-dot legend-dot-ok" aria-hidden="true"></span>Al dia: {{ upToDateEmployeesCount() }}</p>
+        <p><span class="legend-dot legend-dot-pending" aria-hidden="true"></span>Pendientes: {{ pendingEmployeesCount() }}</p>
+      </div>
+    </div>
   </article>
 
-  <article class="panel metric-card metric-card-warn">
-    <p class="metric-label">Pendientes por atender</p>
-    <p class="metric-value">{{ dashboard()?.pendingEmployees ?? 0 }}</p>
+  <article class="panel chart-card">
+    <div class="panel-head">
+      <h2>Dotaciones del periodo</h2>
+      <span>{{ deliveredRequirementsTotal() + pendingRequirementTotal() }} total</span>
+    </div>
+
+    <div class="stacked-bar" role="img" aria-label="Distribucion entre dotaciones entregadas y no entregadas">
+      <span class="stacked-segment stacked-segment-ok" [style.width.%]="deliveredRequirementsPercent()"></span>
+      <span class="stacked-segment stacked-segment-pending" [style.width.%]="pendingRequirementsPercent()"></span>
+    </div>
+
+    <div class="stacked-meta">
+      <p>Entregadas: {{ deliveredRequirementsTotal() }} ({{ deliveredRequirementsPercent() }}%)</p>
+      <p>No entregadas: {{ pendingRequirementTotal() }} ({{ pendingRequirementsPercent() }}%)</p>
+    </div>
   </article>
 
-  <article class="panel metric-card metric-card-ok">
-    <p class="metric-label">Empleados al dia</p>
-    <p class="metric-value">{{ dashboard()?.upToDateEmployees ?? 0 }}</p>
-  </article>
+  <article class="panel chart-card">
+    <div class="panel-head">
+      <h2>Balance de costos</h2>
+      <span>$ {{ (deliveredCostThisMonth() + pendingEstimatedCost()) | number:'1.0-2' }}</span>
+    </div>
 
-  <article class="panel metric-card">
-    <p class="metric-label">Entregas este mes</p>
-    <p class="metric-value">{{ dashboard()?.deliveriesThisMonth ?? 0 }}</p>
+    <div class="cost-row">
+      <p>Entregado</p>
+      <div class="cost-track">
+        <span class="cost-fill cost-fill-ok" [style.width.%]="deliveredCostPercent()"></span>
+      </div>
+      <strong>$ {{ deliveredCostThisMonth() | number:'1.0-2' }}</strong>
+    </div>
+
+    <div class="cost-row">
+      <p>Pendiente</p>
+      <div class="cost-track">
+        <span class="cost-fill cost-fill-pending" [style.width.%]="pendingCostPercent()"></span>
+      </div>
+      <strong>$ {{ pendingEstimatedCost() | number:'1.0-2' }}</strong>
+    </div>
   </article>
 </section>
+
+<app-birthday-year-calendar [employees]="employees()" />
 
 <section class="split dashboard-sections">
   <article class="panel">

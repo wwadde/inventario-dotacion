@@ -13,6 +13,8 @@ import {
   ItemTypePayload,
   Requirement,
   RequirementPayload,
+  ItemStockInboundPayload,
+  StockMovement,
 } from './dotacion.models';
 import { tap } from 'rxjs';
 
@@ -102,8 +104,21 @@ export class DotacionApiService {
     return this.http.post<Requirement>(`${this.baseUrl}/requirements`, payload, this.withAuth());
   }
 
+  updateRequirement(requirementId: string, payload: RequirementPayload) {
+    return this.http.put<Requirement>(`${this.baseUrl}/requirements/${requirementId}`, payload, this.withAuth());
+  }
+
   deleteRequirement(requirementId: string) {
     return this.http.delete<void>(`${this.baseUrl}/requirements/${requirementId}`, this.withAuth());
+  }
+
+  addItemStockInbound(itemId: string, payload: ItemStockInboundPayload) {
+    return this.http.post<ItemType>(`${this.baseUrl}/items/${itemId}/stock/inbound`, payload, this.withAuth());
+  }
+
+  listStockMovements(itemId?: string) {
+    const params = itemId ? new HttpParams().set('itemTypeId', itemId) : undefined;
+    return this.http.get<StockMovement[]>(`${this.baseUrl}/items/stock-movements`, this.withAuth(params));
   }
 
   listDeliveries(employeeId?: string) {

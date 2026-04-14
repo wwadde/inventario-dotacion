@@ -1,7 +1,10 @@
 package com.inventario.dotacion.item.dto;
 
+import java.math.BigDecimal;
+
 import com.inventario.dotacion.item.ItemCategory;
-import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,9 +25,14 @@ public record ItemTypeUpsertRequest(
         @Size(max = 500, message = "La descripcion no puede superar 500 caracteres")
         String description,
 
-        @Min(value = 1, message = "La periodicidad minima es 1 mes")
-        @Max(value = 60, message = "La periodicidad maxima es 60 meses")
-        int defaultPeriodicityMonths,
+        @NotNull(message = "El costo unitario es obligatorio")
+        @DecimalMin(value = "0.00", message = "El costo unitario no puede ser negativo")
+        @Digits(integer = 12, fraction = 2, message = "El costo unitario admite hasta 2 decimales")
+        BigDecimal unitCost,
+
+        @NotNull(message = "El stock disponible es obligatorio")
+        @Min(value = 0, message = "El stock disponible no puede ser negativo")
+        int availableStock,
 
         Boolean active
 ) {

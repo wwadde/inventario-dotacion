@@ -3,8 +3,12 @@ package com.inventario.dotacion.item;
 import java.util.List;
 import java.util.UUID;
 
+import com.inventario.dotacion.common.security.AccessControlService;
+import com.inventario.dotacion.item.dto.ItemStockInboundRequest;
+import com.inventario.dotacion.item.dto.StockMovementResponse;
 import com.inventario.dotacion.item.dto.ItemTypeResponse;
 import com.inventario.dotacion.item.dto.ItemTypeUpsertRequest;
+import com.inventario.dotacion.item.stock.StockMovementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ItemTypeController {
 
     private final ItemTypeService itemTypeService;
+    private final StockMovementService stockMovementService;
+    private final AccessControlService accessControlService;
 
     @GetMapping
     public List<ItemTypeResponse> listItems(@RequestParam(defaultValue = "true") boolean activeOnly) {
@@ -51,5 +57,16 @@ public class ItemTypeController {
     public ResponseEntity<Void> deactivateItem(@PathVariable UUID itemTypeId) {
         itemTypeService.deactivateItem(itemTypeId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{itemTypeId}/stock/inbound")
+    public ItemTypeResponse addInboundStock(@PathVariable UUID itemTypeId,
+                                            @Valid @RequestBody ItemStockInboundRequest request) {
+        return itemTypeService.addInboundStock(itemTypeId, request, accessControlService.currentUsernameOrSystem());
+    }
+
+    @GetMapping("/stock-movements")
+    public List<StockMovementResponse> listStockMovements(@RequestParam(required = false) UUID itemTypeId) {
+        return stockMovementService.listMovements(itemTypeId);
     }
 }

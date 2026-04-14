@@ -87,6 +87,7 @@ public class EmployeeService {
         employee.setPhone(normalizeNullable(request.phone()));
         employee.setArea(normalizeNullable(request.area()));
         employee.setPosition(normalizeNullable(request.position()));
+        employee.setBirthDate(request.birthDate());
     }
 
     private String normalizeNullable(String value) {
@@ -119,6 +120,7 @@ public class EmployeeService {
             phone,
                 employee.getArea(),
                 employee.getPosition(),
+                employee.getBirthDate(),
                 employee.isActive(),
                 employee.getCreatedAt(),
                 employee.getUpdatedAt()

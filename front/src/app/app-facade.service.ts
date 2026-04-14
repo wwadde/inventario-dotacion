@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   FormArray,
   FormControl,
@@ -22,6 +23,8 @@ import {
   ItemTypePayload,
   Requirement,
   RequirementPayload,
+  DeliveryType,
+  StockMovement,
 } from './core/dotacion.models';
 
 @Injectable({ providedIn: 'root' })
@@ -31,7 +34,7 @@ export class AppFacade {
   private readonly api = inject(DotacionApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 
-  readonly currentView = signal<'dashboard' | 'employees' | 'items' | 'requirements' | 'deliveries' | 'reports'>(
+  readonly currentView = signal<'dashboard' | 'employees' | 'items' | 'requirements' | 'deliveries-implementos' | 'reports'>(
     'dashboard',
   );
 
@@ -47,9 +50,11 @@ export class AppFacade {
   readonly deliveries = signal<Delivery[]>([]);
   readonly complianceRows = signal<ComplianceRow[]>([]);
   readonly dashboard = signal<DashboardSummary | null>(null);
+  readonly stockMovements = signal<StockMovement[]>([]);
 
   readonly editingEmployeeId = signal<string | null>(null);
   readonly editingItemId = signal<string | null>(null);
+  readonly editingRequirementId = signal<string | null>(null);
   readonly complianceFilter = signal<ComplianceStatus>('ALL');
   readonly globalEmployeeFilterId = signal('');
 
@@ -64,17 +69,25 @@ export class AppFacade {
   readonly requirementPage = signal(1);
   readonly deliveryPage = signal(1);
   readonly reportPage = signal(1);
+  readonly selectedStockItemId = signal<string | null>(null);
+
+  readonly employeeSubmitState = signal<'idle' | 'success' | 'error'>('idle');
+  readonly itemSubmitState = signal<'idle' | 'success' | 'error'>('idle');
+  readonly requirementSubmitState = signal<'idle' | 'success' | 'error'>('idle');
+  readonly deliverySubmitState = signal<'idle' | 'success' | 'error'>('idle');
+  readonly deliveryValidationErrors = signal<Record<string, string[]>>({});
+  readonly stockSubmitState = signal<'idle' | 'success' | 'error'>('idle');
 
   readonly navigation = [
     { id: 'dashboard', label: 'Resumen' },
     { id: 'employees', label: 'Empleados' },
     { id: 'items', label: 'Implementos' },
-    { id: 'requirements', label: 'Requerimientos' },
-    { id: 'deliveries', label: 'Entregas' },
+    { id: 'requirements', label: 'Solicitudes' },
+    { id: 'deliveries-implementos', label: 'Entregas' },
     { id: 'reports', label: 'Reportes' },
   ] as const;
 
-  readonly itemCategories: ItemCategory[] = ['UNIFORME', 'BOTAS', 'EPP', 'OTRO'];
+  readonly itemCategories: ItemCategory[] = ['DOTACION', 'REGALO'];
 
   readonly loginForm = this.fb.group({
     username: this.fb.control(this.api.getStoredUsername() ?? '', [Validators.required]),
@@ -82,10 +95,8 @@ export class AppFacade {
   });
 
   readonly itemCategoryLabel: Record<ItemCategory, string> = {
-    UNIFORME: 'Uniforme',
-    BOTAS: 'Botas',
-    EPP: 'EPP',
-    OTRO: 'Otro',
+    DOTACION: 'Dotacion',
+    REGALO: 'Regalo',
   };
 
   readonly employeeForm = this.fb.group({
@@ -96,34 +107,37 @@ export class AppFacade {
     phone: this.fb.control('', [Validators.maxLength(50)]),
     area: this.fb.control('', [Validators.maxLength(120)]),
     position: this.fb.control('', [Validators.maxLength(120)]),
+    birthDate: this.fb.control(''),
     active: this.fb.control(true),
   });
 
   readonly itemForm = this.fb.group({
     code: this.fb.control('', [Validators.required, Validators.maxLength(30)]),
     name: this.fb.control('', [Validators.required, Validators.maxLength(140)]),
-    category: this.fb.control<ItemCategory>('UNIFORME', [Validators.required]),
+    category: this.fb.control<ItemCategory>('DOTACION', [Validators.required]),
     description: this.fb.control('', [Validators.maxLength(500)]),
-    defaultPeriodicityMonths: this.fb.control(6, [Validators.required, Validators.min(1), Validators.max(60)]),
+    unitCost: this.fb.control(0, [Validators.required, Validators.min(0)]),
+    availableStock: this.fb.control(0, [Validators.required, Validators.min(0)]),
     active: this.fb.control(true),
-  });
-
-  readonly requirementForm = this.fb.group({
-    employeeId: this.fb.control('', [Validators.required]),
-    itemTypeId: this.fb.control('', [Validators.required]),
-    periodicityMonths: this.fb.control(6, [Validators.required, Validators.min(1), Validators.max(60)]),
-    effectiveFrom: this.fb.control(this.currentDate(), [Validators.required]),
-    notes: this.fb.control('', [Validators.maxLength(500)]),
   });
 
   readonly deliveryForm = this.fb.group({
     employeeId: this.fb.control('', [Validators.required]),
+    deliveryType: this.fb.control<DeliveryType>('IMPLEMENTOS', [Validators.required]),
     deliveredAt: this.fb.control(this.currentDate(), [Validators.required]),
     deliveredBy: this.fb.control('Recursos Humanos', [Validators.required, Validators.maxLength(140)]),
     signerName: this.fb.control('', [Validators.maxLength(140)]),
     notes: this.fb.control('', [Validators.maxLength(1000)]),
     signatureDataUrl: this.fb.control(''),
+    duplicateAcknowledged: this.fb.control(false),
     items: this.fb.array([this.buildDeliveryItemGroup()], [Validators.minLength(1)]),
+  });
+
+  readonly requirementForm = this.fb.group({
+    employeeId: this.fb.control('', [Validators.required]),
+    itemTypeId: this.fb.control('', [Validators.required]),
+    requestedQuantity: this.fb.control(1, [Validators.required, Validators.min(1)]),
+    notes: this.fb.control('', [Validators.maxLength(500)]),
   });
 
   readonly pendingRows = computed(() =>
@@ -132,6 +146,53 @@ export class AppFacade {
       .filter((row) => row.status === 'PENDING')
       .slice(0, 8),
   );
+
+  readonly activeEmployeesCount = computed(
+    () => this.dashboard()?.totalActiveEmployees ?? this.complianceRows().length,
+  );
+
+  readonly pendingEmployeesCount = computed(
+    () => this.dashboard()?.pendingEmployees ?? this.pendingRows().length,
+  );
+
+  readonly upToDateEmployeesCount = computed(() => {
+    const summary = this.dashboard();
+    if (summary) {
+      return summary.upToDateEmployees;
+    }
+
+    return Math.max(0, this.activeEmployeesCount() - this.pendingEmployeesCount());
+  });
+
+  readonly complianceCoveragePercent = computed(() =>
+    this.calculateRatioPercent(this.upToDateEmployeesCount(), this.activeEmployeesCount()),
+  );
+
+  readonly pendingEmployeesPercent = computed(() =>
+    this.calculateRatioPercent(this.pendingEmployeesCount(), this.activeEmployeesCount()),
+  );
+
+  readonly pendingRequirementTotal = computed(
+    () => this.dashboard()?.pendingRequirements ?? this.pendingRows().reduce((total, row) => total + row.pendingRequirements, 0),
+  );
+
+  readonly deliveredRequirementsTotal = computed(() =>
+    this.dashboard()?.deliveredRequirements ?? 0,
+  );
+
+  readonly deliveredRequirementsPercent = computed(() =>
+    this.dashboard()?.deliveredRequirementsPercent ?? 0,
+  );
+
+  readonly pendingRequirementsPercent = computed(() =>
+    this.dashboard()?.pendingRequirementsPercent ?? 0,
+  );
+
+  readonly deliveredCostThisMonth = computed(() => this.dashboard()?.deliveredCostThisMonth ?? 0);
+
+  readonly pendingEstimatedCost = computed(() => this.dashboard()?.pendingEstimatedCost ?? 0);
+
+  readonly birthdaysToday = computed(() => this.dashboard()?.birthdaysToday ?? 0);
 
   readonly canManage = computed(() => this.authSession()?.authenticated ?? false);
   readonly authenticatedUsername = computed(() => this.authSession()?.username ?? null);
@@ -165,7 +226,7 @@ export class AppFacade {
 
     return this.employees().filter((employee) => {
       const searchable = this.normalizeText(
-        `${employee.fullName} ${employee.documentNumber} ${employee.area ?? ''} ${employee.position ?? ''}`,
+        `${employee.fullName} ${employee.documentNumber} ${employee.area ?? ''} ${employee.position ?? ''} ${employee.birthDate ?? ''}`,
       );
       return searchable.includes(query);
     });
@@ -183,7 +244,7 @@ export class AppFacade {
 
     return this.items().filter((item) => {
       const searchable = this.normalizeText(
-        `${item.code} ${item.name} ${this.itemCategoryLabel[item.category]} ${item.description ?? ''}`,
+        `${item.code} ${item.name} ${this.itemCategoryLabel[item.category]} ${item.description ?? ''} ${item.unitCost} ${item.availableStock}`,
       );
       return searchable.includes(query);
     });
@@ -207,7 +268,7 @@ export class AppFacade {
 
     return requirements.filter((requirement) => {
       const searchable = this.normalizeText(
-        `${requirement.employeeName} ${requirement.itemName} ${requirement.effectiveFrom} ${requirement.notes ?? ''}`,
+        `${requirement.employeeName} ${requirement.employeeDocument} ${requirement.itemCode} ${requirement.itemName} ${requirement.requestedQuantity} ${requirement.notes ?? ''}`,
       );
       return searchable.includes(query);
     });
@@ -219,7 +280,7 @@ export class AppFacade {
     this.paginate(this.filteredRequirements(), this.requirementCurrentPage()),
   );
 
-  readonly filteredDeliveries = computed(() => {
+  private readonly filteredDeliveries = computed(() => {
     const query = this.normalizeText(this.deliveryQuery());
     const employeeFilterId = this.globalEmployeeFilterId();
 
@@ -237,9 +298,14 @@ export class AppFacade {
     });
   });
 
-  readonly deliveryTotalPages = computed(() => this.pageCount(this.filteredDeliveries().length));
+  readonly filteredDeliveriesTable = computed(() => this.filteredDeliveries());
+
+  readonly deliveryTotalPages = computed(() => this.pageCount(this.filteredDeliveriesTable().length));
+
   readonly deliveryCurrentPage = computed(() => Math.min(this.deliveryPage(), this.deliveryTotalPages()));
-  readonly paginatedDeliveries = computed(() => this.paginate(this.filteredDeliveries(), this.deliveryCurrentPage()));
+  readonly paginatedDeliveriesTable = computed(() =>
+    this.paginate(this.filteredDeliveriesTable(), this.deliveryCurrentPage()),
+  );
 
   readonly filteredComplianceRows = computed(() => {
     const query = this.normalizeText(this.reportQuery());
@@ -275,7 +341,7 @@ export class AppFacade {
     return this.deliveryForm.controls.items;
   }
 
-  setView(view: 'dashboard' | 'employees' | 'items' | 'requirements' | 'deliveries' | 'reports'): void {
+  setView(view: 'dashboard' | 'employees' | 'items' | 'requirements' | 'deliveries-implementos' | 'reports'): void {
     this.currentView.set(view);
   }
 
@@ -406,14 +472,17 @@ export class AppFacade {
         firstValueFrom(this.api.getCompliance('ALL')),
       ]);
 
+      const stockMovements = await firstValueFrom(this.api.listStockMovements(this.selectedStockItemId() ?? undefined));
+
       this.dashboard.set(dashboard);
       this.employees.set(employees);
       this.items.set(items);
       this.requirements.set(requirements);
       this.deliveries.set(deliveries);
       this.complianceRows.set(complianceRows);
-    } catch {
-      this.errorMessage.set('No fue posible cargar la información inicial del sistema.');
+      this.stockMovements.set(stockMovements);
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible cargar la información inicial del sistema.'));
     } finally {
       this.loading.set(false);
     }
@@ -421,13 +490,17 @@ export class AppFacade {
 
   async saveEmployee(): Promise<void> {
     if (!this.ensureAdminSession()) {
+      this.employeeSubmitState.set('error');
       return;
     }
 
     if (this.employeeForm.invalid) {
       this.employeeForm.markAllAsTouched();
+      this.employeeSubmitState.set('error');
       return;
     }
+
+    this.employeeSubmitState.set('idle');
 
     const payload: EmployeePayload = {
       documentNumber: this.employeeForm.controls.documentNumber.value.trim(),
@@ -437,6 +510,7 @@ export class AppFacade {
       phone: this.emptyAsNull(this.employeeForm.controls.phone.value),
       area: this.emptyAsNull(this.employeeForm.controls.area.value),
       position: this.emptyAsNull(this.employeeForm.controls.position.value),
+      birthDate: this.emptyAsNull(this.employeeForm.controls.birthDate.value),
       active: this.employeeForm.controls.active.value,
     };
 
@@ -452,8 +526,10 @@ export class AppFacade {
 
       this.resetEmployeeForm();
       await this.refreshEmployeesRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible guardar el empleado.');
+      this.employeeSubmitState.set('success');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible guardar el empleado.'));
+      this.employeeSubmitState.set('error');
     }
   }
 
@@ -467,6 +543,7 @@ export class AppFacade {
       phone: employee.phone ?? '',
       area: employee.area ?? '',
       position: employee.position ?? '',
+      birthDate: employee.birthDate ?? '',
       active: employee.active,
     });
   }
@@ -488,27 +565,32 @@ export class AppFacade {
       await firstValueFrom(this.api.deactivateEmployee(employee.id));
       this.notifySuccess('Empleado desactivado correctamente.');
       await this.refreshEmployeesRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible desactivar el empleado.');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible desactivar el empleado.'));
     }
   }
 
   async saveItem(): Promise<void> {
     if (!this.ensureAdminSession()) {
+      this.itemSubmitState.set('error');
       return;
     }
 
     if (this.itemForm.invalid) {
       this.itemForm.markAllAsTouched();
+      this.itemSubmitState.set('error');
       return;
     }
+
+    this.itemSubmitState.set('idle');
 
     const payload: ItemTypePayload = {
       code: this.itemForm.controls.code.value.trim().toUpperCase(),
       name: this.itemForm.controls.name.value.trim(),
       category: this.itemForm.controls.category.value,
       description: this.emptyAsNull(this.itemForm.controls.description.value),
-      defaultPeriodicityMonths: this.itemForm.controls.defaultPeriodicityMonths.value,
+      unitCost: this.roundToTwoDecimals(this.itemForm.controls.unitCost.value),
+      availableStock: this.itemForm.controls.availableStock.value,
       active: this.itemForm.controls.active.value,
     };
 
@@ -524,8 +606,10 @@ export class AppFacade {
 
       this.resetItemForm();
       await this.refreshItemsRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible guardar el implemento.');
+      this.itemSubmitState.set('success');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible guardar el implemento.'));
+      this.itemSubmitState.set('error');
     }
   }
 
@@ -536,7 +620,8 @@ export class AppFacade {
       name: item.name,
       category: item.category,
       description: item.description ?? '',
-      defaultPeriodicityMonths: item.defaultPeriodicityMonths,
+      unitCost: item.unitCost,
+      availableStock: item.availableStock,
       active: item.active,
     });
   }
@@ -558,43 +643,97 @@ export class AppFacade {
       await firstValueFrom(this.api.deactivateItem(item.id));
       this.notifySuccess('Implemento desactivado correctamente.');
       await this.refreshItemsRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible desactivar el implemento.');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible desactivar el implemento.'));
     }
   }
 
-  async createRequirement(): Promise<void> {
+  async selectStockMovementItem(itemId: string | null): Promise<void> {
+    this.selectedStockItemId.set(itemId);
+    await this.reloadStockMovements();
+  }
+
+  async addInboundStock(itemId: string, quantity: number, reason: string | null): Promise<void> {
     if (!this.ensureAdminSession()) {
+      this.stockSubmitState.set('error');
+      return;
+    }
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      this.errorMessage.set('La cantidad de ingreso debe ser mayor a cero.');
+      this.stockSubmitState.set('error');
+      return;
+    }
+
+    this.stockSubmitState.set('idle');
+
+    try {
+      await firstValueFrom(this.api.addItemStockInbound(itemId, {
+        quantity: Math.floor(quantity),
+        reason: reason && reason.trim().length > 0 ? reason.trim() : null,
+      }));
+
+      this.notifySuccess('Ingreso de stock registrado correctamente.');
+      await this.refreshItemsRelatedData();
+      this.stockSubmitState.set('success');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible registrar el ingreso de stock.'));
+      this.stockSubmitState.set('error');
+    }
+  }
+
+  async saveRequirement(): Promise<void> {
+    if (!this.ensureAdminSession()) {
+      this.requirementSubmitState.set('error');
       return;
     }
 
     if (this.requirementForm.invalid) {
       this.requirementForm.markAllAsTouched();
+      this.requirementSubmitState.set('error');
       return;
     }
+
+    this.requirementSubmitState.set('idle');
 
     const payload: RequirementPayload = {
       employeeId: this.requirementForm.controls.employeeId.value,
       itemTypeId: this.requirementForm.controls.itemTypeId.value,
-      periodicityMonths: this.requirementForm.controls.periodicityMonths.value,
-      effectiveFrom: this.requirementForm.controls.effectiveFrom.value,
+      requestedQuantity: this.requirementForm.controls.requestedQuantity.value,
       notes: this.emptyAsNull(this.requirementForm.controls.notes.value),
     };
 
     try {
-      await firstValueFrom(this.api.createRequirement(payload));
-      this.notifySuccess('Requerimiento creado correctamente.');
-      this.requirementForm.reset({
-        employeeId: '',
-        itemTypeId: '',
-        periodicityMonths: 6,
-        effectiveFrom: this.currentDate(),
-        notes: '',
-      });
-      await this.refreshComplianceRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible crear el requerimiento.');
+      const editingId = this.editingRequirementId();
+      if (editingId) {
+        await firstValueFrom(this.api.updateRequirement(editingId, payload));
+        this.notifySuccess('Solicitud actualizada correctamente.');
+      } else {
+        await firstValueFrom(this.api.createRequirement(payload));
+        this.notifySuccess('Solicitud registrada correctamente.');
+      }
+
+      this.resetRequirementForm();
+      await this.refreshRequirementsRelatedData();
+      this.requirementSubmitState.set('success');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible guardar la solicitud.'));
+      this.requirementSubmitState.set('error');
     }
+  }
+
+  editRequirement(requirement: Requirement): void {
+    this.editingRequirementId.set(requirement.id);
+    this.requirementForm.setValue({
+      employeeId: requirement.employeeId,
+      itemTypeId: requirement.itemTypeId,
+      requestedQuantity: requirement.requestedQuantity,
+      notes: requirement.notes ?? '',
+    });
+  }
+
+  cancelRequirementEdition(): void {
+    this.resetRequirementForm();
   }
 
   async deleteRequirement(requirement: Requirement): Promise<void> {
@@ -602,16 +741,16 @@ export class AppFacade {
       return;
     }
 
-    if (!window.confirm(`Eliminar requerimiento de ${requirement.employeeName}?`)) {
+    if (!window.confirm(`Eliminar solicitud de ${requirement.employeeName} para ${requirement.itemName}?`)) {
       return;
     }
 
     try {
       await firstValueFrom(this.api.deleteRequirement(requirement.id));
-      this.notifySuccess('Requerimiento eliminado correctamente.');
-      await this.refreshComplianceRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible eliminar el requerimiento.');
+      this.notifySuccess('Solicitud eliminada correctamente.');
+      await this.refreshRequirementsRelatedData();
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible eliminar la solicitud.'));
     }
   }
 
@@ -632,21 +771,28 @@ export class AppFacade {
 
   async createDelivery(): Promise<void> {
     if (!this.ensureAdminSession()) {
+      this.deliverySubmitState.set('error');
       return;
     }
 
     if (this.deliveryForm.invalid) {
       this.deliveryForm.markAllAsTouched();
+      this.deliverySubmitState.set('error');
       return;
     }
 
+    this.deliveryValidationErrors.set({});
+    this.deliverySubmitState.set('idle');
+
     const payload: DeliveryPayload = {
       employeeId: this.deliveryForm.controls.employeeId.value,
+      deliveryType: this.deliveryForm.controls.deliveryType.value,
       deliveredAt: this.deliveryForm.controls.deliveredAt.value,
       deliveredBy: this.deliveryForm.controls.deliveredBy.value.trim(),
       signerName: this.emptyAsNull(this.deliveryForm.controls.signerName.value),
       notes: this.emptyAsNull(this.deliveryForm.controls.notes.value),
       signatureDataUrl: this.emptyAsNull(this.deliveryForm.controls.signatureDataUrl.value),
+      duplicateAcknowledged: this.deliveryForm.controls.duplicateAcknowledged.value,
       items: this.deliveryItems.controls
         .map((itemControl) => ({
           itemTypeId: itemControl.controls.itemTypeId.value,
@@ -657,16 +803,71 @@ export class AppFacade {
 
     if (payload.items.length === 0) {
       this.errorMessage.set('Debe registrar al menos un implemento para la entrega.');
+      this.deliverySubmitState.set('error');
+      return;
+    }
+
+    const requestedByItemType = new Map<string, number>();
+    for (const item of payload.items) {
+      requestedByItemType.set(item.itemTypeId, (requestedByItemType.get(item.itemTypeId) ?? 0) + item.quantity);
+    }
+
+    const duplicateItemNames: string[] = [];
+
+    for (const [itemTypeId, requestedQuantity] of requestedByItemType.entries()) {
+      const item = this.items().find((registeredItem) => registeredItem.id === itemTypeId);
+      if (!item) {
+        this.errorMessage.set('No se puede registrar la entrega: uno de los implementos no existe o esta inactivo.');
+        this.deliverySubmitState.set('error');
+        return;
+      }
+
+      const expectedCategory: ItemCategory = payload.deliveryType === 'REGALOS' ? 'REGALO' : 'DOTACION';
+      if (item.category !== expectedCategory) {
+        const expectedLabel = expectedCategory === 'REGALO' ? 'Regalo' : 'Dotacion';
+        this.errorMessage.set(
+          `El item ${item.code} no corresponde al tipo de entrega actual. Solo se permiten items de categoria ${expectedLabel}.`,
+        );
+        this.deliverySubmitState.set('error');
+        return;
+      }
+
+      if (item.availableStock < requestedQuantity) {
+        this.errorMessage.set(
+          `Stock insuficiente para ${item.code}. Disponible: ${item.availableStock}, solicitado: ${requestedQuantity}.`,
+        );
+        this.deliverySubmitState.set('error');
+        return;
+      }
+
+      const duplicateAlreadyDelivered = this.deliveries().some((delivery) =>
+        delivery.employeeId === payload.employeeId && delivery.items.some((deliveryItem) => deliveryItem.itemTypeId === itemTypeId),
+      );
+
+      if (duplicateAlreadyDelivered) {
+        duplicateItemNames.push(item.name);
+      }
+    }
+
+    if (duplicateItemNames.length > 0 && !payload.duplicateAcknowledged) {
+      this.errorMessage.set(
+        `Entrega duplicada detectada para: ${duplicateItemNames.join(', ')}. Debes marcar la confirmacion explicita para continuar.`,
+      );
+      this.deliverySubmitState.set('error');
       return;
     }
 
     try {
       await firstValueFrom(this.api.createDelivery(payload));
       this.notifySuccess('Entrega registrada correctamente.');
+      this.deliveryValidationErrors.set({});
       this.resetDeliveryForm();
       await this.refreshDeliveriesRelatedData();
-    } catch {
-      this.errorMessage.set('No fue posible registrar la entrega.');
+      this.deliverySubmitState.set('success');
+    } catch (error: unknown) {
+      this.deliveryValidationErrors.set(this.extractValidationErrorsByField(error));
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible registrar la entrega.'));
+      this.deliverySubmitState.set('error');
     }
   }
 
@@ -675,16 +876,21 @@ export class AppFacade {
       return;
     }
 
-    const previewWindow = window.open('', '_blank', 'noopener,noreferrer');
+    const previewWindow = window.open('about:blank', '_blank');
+
+    if (previewWindow && !previewWindow.closed) {
+      previewWindow.document.title = 'Generando certificado...';
+      previewWindow.document.body.innerHTML = '<p style="font-family: Manrope, Segoe UI, sans-serif; padding: 18px; color: #4a3526;">Generando certificado PDF...</p>';
+    }
 
     try {
       const file = await firstValueFrom(this.api.downloadCertificate(delivery.id));
       this.openPdfInNewTab(file, previewWindow);
-    } catch {
+    } catch (error: unknown) {
       if (previewWindow && !previewWindow.closed) {
         previewWindow.close();
       }
-      this.errorMessage.set('No fue posible abrir el certificado en una nueva ventana.');
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible abrir el certificado en una nueva ventana.'));
     }
   }
 
@@ -696,8 +902,8 @@ export class AppFacade {
     try {
       const file = await firstValueFrom(this.api.exportComplianceExcel());
       this.downloadFile(file, `reporte-dotacion-${this.currentDate()}.xlsx`);
-    } catch {
-      this.errorMessage.set('No fue posible exportar el reporte.');
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible exportar el reporte.'));
     }
   }
 
@@ -751,6 +957,7 @@ export class AppFacade {
       phone: '',
       area: '',
       position: '',
+      birthDate: '',
       active: true,
     });
   }
@@ -760,26 +967,40 @@ export class AppFacade {
     this.itemForm.reset({
       code: '',
       name: '',
-      category: 'UNIFORME',
+      category: 'DOTACION',
       description: '',
-      defaultPeriodicityMonths: 6,
+      unitCost: 0,
+      availableStock: 0,
       active: true,
+    });
+  }
+
+  private resetRequirementForm(): void {
+    this.editingRequirementId.set(null);
+    this.requirementForm.reset({
+      employeeId: '',
+      itemTypeId: '',
+      requestedQuantity: 1,
+      notes: '',
     });
   }
 
   private resetDeliveryForm(): void {
     this.deliveryForm.reset({
       employeeId: '',
+      deliveryType: 'IMPLEMENTOS',
       deliveredAt: this.currentDate(),
       deliveredBy: 'Recursos Humanos',
       signerName: '',
       notes: '',
       signatureDataUrl: '',
+      duplicateAcknowledged: false,
       items: [],
     });
 
     this.deliveryItems.clear();
     this.deliveryItems.push(this.buildDeliveryItemGroup());
+    this.deliveryValidationErrors.set({});
   }
 
   private async refreshEmployeesRelatedData(): Promise<void> {
@@ -799,41 +1020,155 @@ export class AppFacade {
   }
 
   private async refreshItemsRelatedData(): Promise<void> {
-    const [items, requirements, deliveries, complianceRows] = await Promise.all([
+    const [items, requirements, deliveries, complianceRows, stockMovements] = await Promise.all([
       firstValueFrom(this.api.listItems(true)),
       firstValueFrom(this.api.listRequirements()),
       firstValueFrom(this.api.listDeliveries()),
       firstValueFrom(this.api.getCompliance('ALL')),
+      firstValueFrom(this.api.listStockMovements(this.selectedStockItemId() ?? undefined)),
     ]);
 
     this.items.set(items);
     this.requirements.set(requirements);
     this.deliveries.set(deliveries);
     this.complianceRows.set(complianceRows);
+    this.stockMovements.set(stockMovements);
   }
 
-  private async refreshComplianceRelatedData(): Promise<void> {
-    const [requirements, complianceRows, dashboard] = await Promise.all([
+  private async refreshRequirementsRelatedData(): Promise<void> {
+    const [requirements, deliveries, complianceRows, dashboard] = await Promise.all([
       firstValueFrom(this.api.listRequirements()),
-      firstValueFrom(this.api.getCompliance('ALL')),
-      firstValueFrom(this.api.getDashboardSummary()),
-    ]);
-
-    this.requirements.set(requirements);
-    this.complianceRows.set(complianceRows);
-    this.dashboard.set(dashboard);
-  }
-
-  private async refreshDeliveriesRelatedData(): Promise<void> {
-    const [deliveries, complianceRows, dashboard] = await Promise.all([
       firstValueFrom(this.api.listDeliveries()),
       firstValueFrom(this.api.getCompliance('ALL')),
       firstValueFrom(this.api.getDashboardSummary()),
     ]);
 
+    this.requirements.set(requirements);
     this.deliveries.set(deliveries);
     this.complianceRows.set(complianceRows);
     this.dashboard.set(dashboard);
+  }
+
+  private async reloadStockMovements(): Promise<void> {
+    try {
+      const movements = await firstValueFrom(this.api.listStockMovements(this.selectedStockItemId() ?? undefined));
+      this.stockMovements.set(movements);
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible cargar la trazabilidad de inventario.'));
+    }
+  }
+
+  private extractApiErrorMessage(error: unknown, fallback: string): string {
+    if (!(error instanceof HttpErrorResponse)) {
+      return fallback;
+    }
+
+    if (typeof error.error === 'string' && error.error.trim().length > 0) {
+      return error.error.trim();
+    }
+
+    if (!error.error || typeof error.error !== 'object') {
+      return fallback;
+    }
+
+    const payload = error.error as {
+      detail?: unknown;
+      message?: unknown;
+      details?: unknown;
+    };
+
+    const detail = this.nonEmptyString(payload.detail) ?? this.nonEmptyString(payload.message);
+    const details = Array.isArray(payload.details)
+      ? payload.details
+        .map((entry) => this.nonEmptyString(entry))
+        .filter((entry): entry is string => entry !== null)
+      : [];
+
+    if (detail && details.length > 0) {
+      return `${detail} ${details.join(' · ')}`;
+    }
+
+    if (detail) {
+      return detail;
+    }
+
+    if (details.length > 0) {
+      return details.join(' · ');
+    }
+
+    return fallback;
+  }
+
+  private extractValidationErrorsByField(error: unknown): Record<string, string[]> {
+    if (!(error instanceof HttpErrorResponse)) {
+      return {};
+    }
+
+    if (!error.error || typeof error.error !== 'object') {
+      return {};
+    }
+
+    const payload = error.error as {
+      details?: unknown;
+    };
+
+    if (!Array.isArray(payload.details)) {
+      return {};
+    }
+
+    const result: Record<string, string[]> = {};
+
+    for (const rawEntry of payload.details) {
+      const entry = this.nonEmptyString(rawEntry);
+      if (!entry) {
+        continue;
+      }
+
+      const separatorIndex = entry.indexOf(':');
+      if (separatorIndex <= 0 || separatorIndex >= entry.length - 1) {
+        continue;
+      }
+
+      const field = entry.slice(0, separatorIndex).trim();
+      const message = entry.slice(separatorIndex + 1).trim();
+      if (!field || !message) {
+        continue;
+      }
+
+      const currentMessages = result[field] ?? [];
+      if (!currentMessages.includes(message)) {
+        result[field] = [...currentMessages, message];
+      }
+    }
+
+    return result;
+  }
+
+  private nonEmptyString(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private async refreshDeliveriesRelatedData(): Promise<void> {
+    const [items, requirements, deliveries, complianceRows, dashboard, stockMovements] = await Promise.all([
+      firstValueFrom(this.api.listItems(true)),
+      firstValueFrom(this.api.listRequirements()),
+      firstValueFrom(this.api.listDeliveries()),
+      firstValueFrom(this.api.getCompliance('ALL')),
+      firstValueFrom(this.api.getDashboardSummary()),
+      firstValueFrom(this.api.listStockMovements(this.selectedStockItemId() ?? undefined)),
+    ]);
+
+    this.items.set(items);
+    this.requirements.set(requirements);
+    this.deliveries.set(deliveries);
+    this.complianceRows.set(complianceRows);
+    this.dashboard.set(dashboard);
+    this.stockMovements.set(stockMovements);
   }
 
   private downloadFile(blob: Blob, filename: string): void {
@@ -854,12 +1189,26 @@ export class AppFacade {
       return;
     }
 
-    window.location.href = objectUrl;
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener';
+    anchor.click();
+
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120000);
   }
 
   private pageCount(totalRows: number): number {
     return Math.max(1, Math.ceil(totalRows / this.tablePageSize));
+  }
+
+  private calculateRatioPercent(part: number, total: number): number {
+    if (total <= 0) {
+      return 0;
+    }
+
+    const percent = Math.round((part / total) * 1000) / 10;
+    return Math.max(0, Math.min(100, percent));
   }
 
   private paginate<T>(rows: T[], page: number): T[] {
@@ -883,6 +1232,10 @@ export class AppFacade {
   private emptyAsNull(value: string): string | null {
     const trimmed = value.trim();
     return trimmed.length === 0 ? null : trimmed;
+  }
+
+  private roundToTwoDecimals(value: number): number {
+    return Math.round(value * 100) / 100;
   }
 
   private notifySuccess(message: string): void {

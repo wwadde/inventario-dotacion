@@ -2,6 +2,8 @@ package com.inventario.dotacion.report;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -17,13 +19,13 @@ import java.util.stream.Collectors;
 import com.inventario.dotacion.common.security.DataPrivacyService;
 import com.inventario.dotacion.delivery.DeliveryItemRepository;
 import com.inventario.dotacion.delivery.DeliveryRepository;
-import com.inventario.dotacion.delivery.LastDeliverySnapshot;
+import com.inventario.dotacion.delivery.EmployeeItemDeliveredSummary;
 import com.inventario.dotacion.employee.Employee;
 import com.inventario.dotacion.employee.EmployeeRepository;
-import com.inventario.dotacion.report.dto.ComplianceRowResponse;
-import com.inventario.dotacion.report.dto.DashboardSummaryResponse;
 import com.inventario.dotacion.requirement.EmployeeRequirement;
 import com.inventario.dotacion.requirement.EmployeeRequirementRepository;
+import com.inventario.dotacion.report.dto.ComplianceRowResponse;
+import com.inventario.dotacion.report.dto.DashboardSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -45,6 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ComplianceService {
 
     private static final DateTimeFormatter EXCEL_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final String EMPLOYEE_ITEM_KEY_SEPARATOR = "::";
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeRequirementRepository requirementRepository;
@@ -63,41 +66,39 @@ public class ComplianceService {
         List<EmployeeRequirement> requirements = requirementRepository.findByEmployeeIdIn(employeeIds);
 
         Map<UUID, List<EmployeeRequirement>> requirementsByEmployee = requirements.stream()
-                .collect(Collectors.groupingBy(requirement -> requirement.getEmployee().getId()));
+            .collect(Collectors.groupingBy(requirement -> requirement.getEmployee().getId()));
 
-        Map<String, LocalDate> latestDeliveriesByEmployeeAndItem = buildLatestDeliveryMap(employeeIds);
+        Map<String, Long> deliveredByEmployeeAndItem = buildDeliveredQuantityMap(employeeIds);
 
-        LocalDate today = LocalDate.now();
         List<ComplianceRowResponse> rows = new ArrayList<>();
 
         for (Employee employee : employees) {
-            List<EmployeeRequirement> employeeRequirements = requirementsByEmployee.getOrDefault(employee.getId(), List.of());
+            List<EmployeeRequirement> employeeRequirements = requirementsByEmployee
+                    .getOrDefault(employee.getId(), List.of());
 
-            int totalRequirements = employeeRequirements.size();
+            int totalRequirements = employeeRequirements.stream()
+                .mapToInt(EmployeeRequirement::getRequestedQuantity)
+                .sum();
+
             int pendingRequirements = 0;
-            LocalDate nextDueDate = null;
+            int upToDateRequirements = 0;
             List<String> pendingItems = new ArrayList<>();
 
             for (EmployeeRequirement requirement : employeeRequirements) {
-                String key = buildKey(employee.getId(), requirement.getItemType().getId());
-                LocalDate lastDeliveryDate = latestDeliveriesByEmployeeAndItem.get(key);
+            String key = buildEmployeeItemKey(employee.getId(), requirement.getItemType().getId());
+            long deliveredQuantity = deliveredByEmployeeAndItem.getOrDefault(key, 0L);
+            int requestedQuantity = requirement.getRequestedQuantity();
+            int coveredQuantity = (int) Math.min(requestedQuantity, deliveredQuantity);
+            int pendingQuantity = Math.max(0, requestedQuantity - coveredQuantity);
 
-                LocalDate dueDate = lastDeliveryDate != null
-                        ? lastDeliveryDate.plusMonths(requirement.getPeriodicityMonths())
-                        : requirement.getEffectiveFrom();
+            upToDateRequirements += coveredQuantity;
+            pendingRequirements += pendingQuantity;
 
-                if (nextDueDate == null || dueDate.isBefore(nextDueDate)) {
-                    nextDueDate = dueDate;
-                }
-
-                boolean pending = !dueDate.isAfter(today);
-                if (pending) {
-                    pendingRequirements++;
-                    pendingItems.add(requirement.getItemType().getName());
-                }
+            if (pendingQuantity > 0) {
+                pendingItems.add(requirement.getItemType().getName() + " (" + pendingQuantity + ")");
+            }
             }
 
-            int upToDateRequirements = totalRequirements - pendingRequirements;
             ComplianceStatus status = pendingRequirements > 0 ? ComplianceStatus.PENDING : ComplianceStatus.UP_TO_DATE;
 
             if (filter == ComplianceStatus.ALL || filter == status) {
@@ -113,7 +114,7 @@ public class ComplianceService {
                         totalRequirements,
                         pendingRequirements,
                         upToDateRequirements,
-                        nextDueDate,
+                        null,
                         String.join(", ", pendingItems),
                         status
                 ));
@@ -127,9 +128,21 @@ public class ComplianceService {
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getDashboardSummary() {
+        List<Employee> activeEmployees = employeeRepository.findByActiveTrueOrderByLastNameAscFirstNameAsc();
+        LocalDate today = LocalDate.now();
+
         List<ComplianceRowResponse> rows = getComplianceRows(ComplianceStatus.ALL, false);
         long pendingEmployees = rows.stream().filter(row -> row.status() == ComplianceStatus.PENDING).count();
         long upToDateEmployees = rows.stream().filter(row -> row.status() == ComplianceStatus.UP_TO_DATE).count();
+
+        long totalRequirements = rows.stream().mapToLong(ComplianceRowResponse::totalRequirements).sum();
+        long pendingRequirements = rows.stream().mapToLong(ComplianceRowResponse::pendingRequirements).sum();
+
+        BigDecimal pendingEstimatedCost = BigDecimal.ZERO;
+
+        long deliveredRequirements = Math.max(0, totalRequirements - pendingRequirements);
+        double deliveredRequirementsPercent = calculatePercent(deliveredRequirements, totalRequirements);
+        double pendingRequirementsPercent = calculatePercent(pendingRequirements, totalRequirements);
 
         YearMonth currentMonth = YearMonth.now();
         long deliveriesThisMonth = deliveryRepository.countByDeliveredAtBetween(
@@ -137,12 +150,53 @@ public class ComplianceService {
                 currentMonth.atEndOfMonth()
         );
 
+        BigDecimal deliveredCostThisMonth = defaultMoney(deliveryItemRepository.sumDeliveredCostBetween(
+                currentMonth.atDay(1),
+                currentMonth.atEndOfMonth()
+        ));
+
+        long birthdaysToday = employeeRepository.countActiveEmployeesWithBirthday(
+                today.getMonthValue(),
+                today.getDayOfMonth()
+        );
+
         return new DashboardSummaryResponse(
-                employeeRepository.countByActiveTrue(),
+                activeEmployees.size(),
                 pendingEmployees,
                 upToDateEmployees,
-                deliveriesThisMonth
+                deliveriesThisMonth,
+                totalRequirements,
+                deliveredRequirements,
+                pendingRequirements,
+                deliveredRequirementsPercent,
+                pendingRequirementsPercent,
+                deliveredCostThisMonth,
+                pendingEstimatedCost.setScale(2, RoundingMode.HALF_UP),
+                birthdaysToday
         );
+    }
+
+    private Map<String, Long> buildDeliveredQuantityMap(List<UUID> employeeIds) {
+        if (employeeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<EmployeeItemDeliveredSummary> deliveredSummaries =
+                deliveryItemRepository.sumDeliveredQuantitiesByEmployeesForImplementos(employeeIds);
+
+        Map<String, Long> deliveredByEmployeeAndItem = new HashMap<>();
+        for (EmployeeItemDeliveredSummary summary : deliveredSummaries) {
+            deliveredByEmployeeAndItem.put(
+                    buildEmployeeItemKey(summary.employeeId(), summary.itemTypeId()),
+                    summary.deliveredQuantity()
+            );
+        }
+
+        return deliveredByEmployeeAndItem;
+    }
+
+    private String buildEmployeeItemKey(UUID employeeId, UUID itemTypeId) {
+        return employeeId + EMPLOYEE_ITEM_KEY_SEPARATOR + itemTypeId;
     }
 
     @Transactional(readOnly = true)
@@ -173,8 +227,8 @@ public class ComplianceService {
         ExcelStyles styles = buildStyles(workbook);
 
         String[] headers = {
-                "Documento", "Empleado", "Area", "Total Requerimientos", "Pendientes", "Al dia", "Proximo Vencimiento",
-            "Implementos Pendientes", "Estado"
+                "Documento", "Empleado", "Area", "Total Entregado", "Pendientes", "Al dia", "Proximo Control",
+            "Observaciones", "Estado"
         };
 
         Row titleRow = sheet.createRow(0);
@@ -385,21 +439,15 @@ public class ComplianceService {
     ) {
     }
 
-    private Map<String, LocalDate> buildLatestDeliveryMap(List<UUID> employeeIds) {
-        if (employeeIds.isEmpty()) {
-            return Map.of();
+    private double calculatePercent(long part, long total) {
+        if (total <= 0) {
+            return 0D;
         }
 
-        List<LastDeliverySnapshot> snapshots = deliveryItemRepository.findLatestDeliveriesByEmployeeIds(employeeIds);
-
-        Map<String, LocalDate> latestByEmployeeAndItem = new HashMap<>();
-        for (LastDeliverySnapshot snapshot : snapshots) {
-            latestByEmployeeAndItem.put(buildKey(snapshot.employeeId(), snapshot.itemTypeId()), snapshot.lastDeliveredAt());
-        }
-        return latestByEmployeeAndItem;
+        return Math.round(((double) part / total) * 1000D) / 10D;
     }
 
-    private String buildKey(UUID employeeId, UUID itemTypeId) {
-        return employeeId + "::" + itemTypeId;
+    private BigDecimal defaultMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

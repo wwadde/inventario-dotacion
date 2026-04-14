@@ -1,115 +1,199 @@
-<section class="split">
-  <article class="panel form-panel">
-    <h2>{{ editingEmployeeId() ? 'Editar empleado' : 'Registrar empleado' }}</h2>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Empleados activos</h2>
+    <span>{{ filteredCount() }} resultados</span>
+  </div>
 
-    <form class="form-grid" [formGroup]="employeeForm()" (ngSubmit)="saveEmployee.emit()">
-      <label class="field">
-        <span>Documento</span>
-        <input type="text" formControlName="documentNumber" />
-      </label>
+  <div class="table-tools table-tools-dual">
+    <button type="button" class="primary-button" [disabled]="!canManage()" (click)="openCreateModal()">
+      Agregar empleado
+    </button>
 
-      <label class="field">
-        <span>Nombre</span>
-        <input type="text" formControlName="firstName" />
-      </label>
+    <input
+      class="search-input"
+      type="search"
+      [value]="employeeQuery()"
+      (input)="setEmployeeQuery.emit($any($event.target).value)"
+      placeholder="Buscar por nombre, documento, area, cargo o fecha"
+    />
+  </div>
 
-      <label class="field">
-        <span>Apellido</span>
-        <input type="text" formControlName="lastName" />
-      </label>
-
-      <label class="field">
-        <span>Correo</span>
-        <input type="email" formControlName="email" />
-      </label>
-
-      <label class="field">
-        <span>Telefono</span>
-        <input type="text" formControlName="phone" />
-      </label>
-
-      <label class="field">
-        <span>Area</span>
-        <input type="text" formControlName="area" />
-      </label>
-
-      <label class="field">
-        <span>Cargo</span>
-        <input type="text" formControlName="position" />
-      </label>
-
-      <label class="toggle-field">
-        <input type="checkbox" formControlName="active" />
-        <span>Empleado activo</span>
-      </label>
-
-      <div class="form-actions">
-        <button type="submit" class="primary-button" [disabled]="!canManage()">
-          {{ editingEmployeeId() ? 'Actualizar' : 'Guardar' }}
-        </button>
-        @if (editingEmployeeId()) {
-          <button type="button" class="ghost-button" (click)="cancelEdition.emit()">Cancelar</button>
-        }
-      </div>
-    </form>
-  </article>
-
-  <article class="panel">
-    <div class="panel-head">
-      <h2>Empleados activos</h2>
-      <span>{{ filteredCount() }} resultados</span>
-    </div>
-
-    <div class="table-tools">
-      <input
-        class="search-input"
-        type="search"
-        [value]="employeeQuery()"
-        (input)="setEmployeeQuery.emit($any($event.target).value)"
-        placeholder="Buscar por nombre, documento, area o cargo"
-      />
-    </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Documento</th>
+          <th>Nombre</th>
+          <th>Cumpleanos</th>
+          <th>Area</th>
+          <th>Cargo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (employee of paginatedEmployees(); track employee.id) {
           <tr>
-            <th>Documento</th>
-            <th>Nombre</th>
-            <th>Area</th>
-            <th>Cargo</th>
-            <th>Acciones</th>
+            <td>{{ employee.documentNumber }}</td>
+            <td>{{ employee.fullName }}</td>
+            <td>{{ employee.birthDate || 'N/A' }}</td>
+            <td>{{ employee.area || 'N/A' }}</td>
+            <td>{{ employee.position || 'N/A' }}</td>
+            <td class="row-actions">
+              <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="openEditModal(employee)">
+                Editar
+              </button>
+              <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="openHistoryModal(employee)">
+                Historial
+              </button>
+              <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deactivateEmployee.emit(employee)">
+                Desactivar
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          @for (employee of paginatedEmployees(); track employee.id) {
-            <tr>
-              <td>{{ employee.documentNumber }}</td>
-              <td>{{ employee.fullName }}</td>
-              <td>{{ employee.area || 'N/A' }}</td>
-              <td>{{ employee.position || 'N/A' }}</td>
-              <td class="row-actions">
-                <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="editEmployee.emit(employee)">
-                  Editar
-                </button>
-                <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deactivateEmployee.emit(employee)">
-                  Desactivar
-                </button>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="5" class="empty-row">No hay empleados registrados.</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+        } @empty {
+          <tr>
+            <td colspan="6" class="empty-row">No hay empleados registrados.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 
-    <div class="pagination-row">
-      <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
-      <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
-      <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
-    </div>
-  </article>
+  <div class="pagination-row">
+    <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+    <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+    <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+  </div>
 </section>
+
+@if (formModalOpen()) {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()">
+    <section class="panel modal-shell" role="dialog" aria-modal="true" aria-label="Formulario de empleado" (click)="stopModalClose($event)">
+      <div class="modal-head">
+        <h2>{{ editingEmployeeId() ? 'Editar empleado' : 'Agregar empleado' }}</h2>
+        <button type="button" class="ghost-button" (click)="closeModal()">Cerrar</button>
+      </div>
+
+      <form class="form-grid" [formGroup]="employeeForm()" (ngSubmit)="submitForm()">
+        <label class="field">
+          <span>Documento</span>
+          <input type="text" formControlName="documentNumber" />
+          @if (hasEmployeeControlError('documentNumber', 'required')) {
+            <small class="field-error">El documento es obligatorio.</small>
+          }
+          @if (hasEmployeeControlError('documentNumber', 'maxlength')) {
+            <small class="field-error">Maximo 40 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Nombre</span>
+          <input type="text" formControlName="firstName" />
+          @if (hasEmployeeControlError('firstName', 'required')) {
+            <small class="field-error">El nombre es obligatorio.</small>
+          }
+          @if (hasEmployeeControlError('firstName', 'maxlength')) {
+            <small class="field-error">Maximo 120 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Apellido</span>
+          <input type="text" formControlName="lastName" />
+          @if (hasEmployeeControlError('lastName', 'required')) {
+            <small class="field-error">El apellido es obligatorio.</small>
+          }
+          @if (hasEmployeeControlError('lastName', 'maxlength')) {
+            <small class="field-error">Maximo 120 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Correo</span>
+          <input type="email" formControlName="email" />
+          @if (hasEmployeeControlError('email', 'email')) {
+            <small class="field-error">El correo no tiene un formato valido.</small>
+          }
+          @if (hasEmployeeControlError('email', 'maxlength')) {
+            <small class="field-error">Maximo 200 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Fecha de cumpleanos</span>
+          <input type="date" formControlName="birthDate" />
+        </label>
+
+        <label class="field">
+          <span>Telefono</span>
+          <input type="text" formControlName="phone" />
+          @if (hasEmployeeControlError('phone', 'maxlength')) {
+            <small class="field-error">Maximo 50 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Area</span>
+          <input type="text" formControlName="area" />
+          @if (hasEmployeeControlError('area', 'maxlength')) {
+            <small class="field-error">Maximo 120 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Cargo</span>
+          <input type="text" formControlName="position" />
+          @if (hasEmployeeControlError('position', 'maxlength')) {
+            <small class="field-error">Maximo 120 caracteres.</small>
+          }
+        </label>
+
+        <label class="toggle-field field-full">
+          <input type="checkbox" formControlName="active" />
+          <span>Empleado activo</span>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-button" [disabled]="!canManage()">
+            {{ editingEmployeeId() ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button type="button" class="ghost-button" (click)="closeModal()">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (historyModalOpen()) {
+  <div class="modal-backdrop" role="presentation" (click)="closeHistoryModal()">
+    <section class="panel modal-shell modal-shell-wide" role="dialog" aria-modal="true" aria-label="Historial de entregas" (click)="stopModalClose($event)">
+      <div class="modal-head">
+        <h2>Historial de {{ selectedEmployee()?.fullName }}</h2>
+        <button type="button" class="ghost-button" (click)="closeHistoryModal()">Cerrar</button>
+      </div>
+
+      @if (employeeHistory().length === 0) {
+        <p class="empty">Este empleado aun no tiene entregas registradas.</p>
+      } @else {
+        <div class="list-stack">
+          @for (delivery of employeeHistory(); track delivery.id) {
+            <article class="delivery-card">
+              <div>
+                <h3>{{ delivery.deliveredAt }} · {{ delivery.deliveryType === 'REGALOS' ? 'Regalos' : 'Implementos' }}</h3>
+                <p>{{ delivery.deliveredBy }} · {{ delivery.certificateNumber }}</p>
+                @if (delivery.duplicateAcknowledged) {
+                  <p class="muted">Entrega duplicada aprobada por administrador.</p>
+                }
+                <div class="chip-list">
+                  @for (item of delivery.items; track item.id) {
+                    <span class="chip">{{ item.itemName }} x{{ item.quantity }}</span>
+                  }
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+  </div>
+}

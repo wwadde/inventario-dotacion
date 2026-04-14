@@ -10,6 +10,8 @@ import com.inventario.dotacion.employee.Employee;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,6 +41,10 @@ public class Delivery {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_type", nullable = false, length = 20)
+    private DeliveryType deliveryType = DeliveryType.IMPLEMENTOS;
+
     @Column(name = "delivered_at", nullable = false)
     private LocalDate deliveredAt;
 
@@ -56,6 +62,9 @@ public class Delivery {
 
     @Column(name = "certificate_number", nullable = false, unique = true, length = 80)
     private String certificateNumber;
+
+    @Column(name = "duplicate_acknowledged", nullable = false)
+    private boolean duplicateAcknowledged;
 
     @OneToMany(mappedBy = "delivery", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DeliveryItem> items = new ArrayList<>();

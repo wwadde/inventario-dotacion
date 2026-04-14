@@ -1,6 +1,5 @@
 package com.inventario.dotacion.requirement;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -43,11 +42,8 @@ public class EmployeeRequirement {
     @JoinColumn(name = "item_type_id", nullable = false)
     private ItemType itemType;
 
-    @Column(name = "periodicity_months", nullable = false)
-    private int periodicityMonths;
-
-    @Column(name = "effective_from", nullable = false)
-    private LocalDate effectiveFrom;
+    @Column(name = "requested_quantity", nullable = false)
+    private int requestedQuantity;
 
     @Column(length = 500)
     private String notes;

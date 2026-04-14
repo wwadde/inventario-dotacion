@@ -1,0 +1,54 @@
+<section class="panel birthday-year-panel" aria-label="Calendario anual de cumpleanos">
+  <div class="panel-head birthday-year-head">
+    <div>
+      <h2>Cumpleanos del ano</h2>
+      <p class="muted">Vista anual para ubicar rapido que empleados cumplen por mes y dia.</p>
+    </div>
+  </div>
+
+  <div class="birthday-year-grid">
+    @for (month of monthCalendars(); track month.monthNumber) {
+      <article class="birthday-month-card" [attr.aria-label]="'Cumpleanos de ' + month.monthLabel">
+        <header class="birthday-month-head">
+          <h3>{{ month.monthLabel }}</h3>
+          <span class="birthday-badge">{{ month.birthdayCount }}</span>
+        </header>
+
+        <div class="birthday-weekdays" aria-hidden="true">
+          @for (label of weekdayLabels; track $index) {
+            <span>{{ label }}</span>
+          }
+        </div>
+
+        <div class="birthday-days" role="grid" [attr.aria-label]="'Calendario de ' + month.monthLabel">
+          @for (cell of month.cells; track $index) {
+            <div
+              class="birthday-day"
+              [class.birthday-day-empty]="cell.day === null"
+              [class.birthday-day-hit]="cell.birthdays.length > 0"
+              role="gridcell"
+              [attr.aria-label]="cell.day ? ('Dia ' + cell.day) : null"
+            >
+              @if (cell.day !== null) {
+                <span>{{ cell.day }}</span>
+                @if (cell.birthdays.length > 0) {
+                  <small>{{ cell.birthdays.length }}</small>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <div class="birthday-list" aria-live="polite">
+          @if (month.entries.length === 0) {
+            <p class="muted">Sin cumpleanos registrados.</p>
+          } @else {
+            @for (entry of month.entries; track entry.employeeId) {
+              <p><strong>{{ entry.day }}</strong> {{ entry.employeeName }}</p>
+            }
+          }
+        </div>
+      </article>
+    }
+  </div>
+</section>

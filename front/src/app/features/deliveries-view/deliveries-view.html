@@ -1,119 +1,207 @@
-<section class="split">
-  <article class="panel form-panel">
-    <h2>Registrar entrega con firma</h2>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Entregas</h2>
+    <span>{{ filteredCount() }} resultados</span>
+  </div>
 
-    <form class="form-grid" [formGroup]="deliveryForm()" (ngSubmit)="createDelivery.emit()">
-      <label class="field field-full">
-        <span>Empleado</span>
-        <select formControlName="employeeId">
-          <option value="">Selecciona un empleado</option>
-          @for (employee of employees(); track employee.id) {
-            <option [value]="employee.id">{{ employee.fullName }} · {{ employee.documentNumber }}</option>
-          }
-        </select>
-      </label>
+  <div class="table-tools table-tools-dual">
+    <button type="button" class="primary-button" [disabled]="!canManage()" (click)="openCreateModal()">
+      Agregar entrega
+    </button>
 
-      <label class="field">
-        <span>Fecha de entrega</span>
-        <input type="date" formControlName="deliveredAt" />
-      </label>
+    <input
+      class="search-input"
+      type="search"
+      [value]="deliveryQuery()"
+      (input)="setDeliveryQuery.emit($any($event.target).value)"
+      placeholder="Buscar por empleado, certificado o entregado por"
+    />
+  </div>
 
-      <label class="field">
-        <span>Entregado por</span>
-        <input type="text" formControlName="deliveredBy" />
-      </label>
-
-      <label class="field field-full">
-        <span>Nombre de quien firma</span>
-        <input type="text" formControlName="signerName" />
-      </label>
-
-      <div class="field field-full" formArrayName="items">
-        <span class="field-label">Implementos entregados</span>
-
-        @for (itemGroup of deliveryItems().controls; track $index; let index = $index) {
-          <div class="delivery-item-row" [formGroupName]="index">
-            <select formControlName="itemTypeId">
-              <option value="">Implemento</option>
-              @for (item of items(); track item.id) {
-                <option [value]="item.id">{{ item.code }} · {{ item.name }}</option>
+  @if (paginatedDeliveries().length === 0) {
+    <p class="empty">No hay entregas para mostrar.</p>
+  } @else {
+    <div class="list-stack">
+      @for (delivery of paginatedDeliveries(); track delivery.id) {
+        <article class="delivery-card">
+          <div>
+            <h3>{{ delivery.employeeName }}</h3>
+            <p>{{ delivery.deliveredAt }} · {{ delivery.deliveredBy }} · {{ delivery.deliveryType === 'REGALOS' ? 'Regalos' : 'Implementos' }}</p>
+            <p class="muted">{{ delivery.certificateNumber }}</p>
+            @if (delivery.duplicateAcknowledged) {
+              <p class="muted">Entrega duplicada aprobada por administrador.</p>
+            }
+            <div class="chip-list">
+              @for (item of delivery.items; track item.id) {
+                <span class="chip">{{ item.itemName }} x{{ item.quantity }}</span>
               }
-            </select>
-
-            <input type="number" min="1" formControlName="quantity" />
-
-            <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="removeDeliveryItem.emit(index)">
-              Quitar
-            </button>
-          </div>
-        }
-
-        <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="addDeliveryItem.emit()">
-          Agregar implemento
-        </button>
-      </div>
-
-      <label class="field field-full">
-        <span>Notas</span>
-        <textarea rows="3" formControlName="notes"></textarea>
-      </label>
-
-      <div class="field field-full">
-        <span class="field-label">Firma digital</span>
-        <app-signature-pad (signatureChange)="signatureChange.emit($event)"></app-signature-pad>
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="primary-button" [disabled]="!canManage()">Guardar entrega</button>
-      </div>
-    </form>
-  </article>
-
-  <article class="panel">
-    <div class="panel-head">
-      <h2>Entregas recientes</h2>
-      <span>{{ filteredCount() }} resultados</span>
-    </div>
-
-    <div class="table-tools">
-      <input
-        class="search-input"
-        type="search"
-        [value]="deliveryQuery()"
-        (input)="setDeliveryQuery.emit($any($event.target).value)"
-        placeholder="Buscar por empleado, certificado o entregado por"
-      />
-    </div>
-
-    @if (paginatedDeliveries().length === 0) {
-      <p class="empty">No hay entregas para mostrar.</p>
-    } @else {
-      <div class="list-stack">
-        @for (delivery of paginatedDeliveries(); track delivery.id) {
-          <article class="delivery-card">
-            <div>
-              <h3>{{ delivery.employeeName }}</h3>
-              <p>{{ delivery.deliveredAt }} · {{ delivery.deliveredBy }}</p>
-              <p class="muted">{{ delivery.certificateNumber }}</p>
-              <div class="chip-list">
-                @for (item of delivery.items; track item.id) {
-                  <span class="chip">{{ item.itemName }} x{{ item.quantity }}</span>
-                }
-              </div>
             </div>
+          </div>
 
-            <button type="button" class="primary-button" [disabled]="!canManage()" (click)="viewCertificate.emit(delivery)">
-              Ver certificado
-            </button>
-          </article>
-        }
-      </div>
-    }
-
-    <div class="pagination-row">
-      <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
-      <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
-      <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+          <button type="button" class="primary-button" [disabled]="!canManage()" (click)="viewCertificate.emit(delivery)">
+            Ver certificado
+          </button>
+        </article>
+      }
     </div>
-  </article>
+  }
+
+  <div class="pagination-row">
+    <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+    <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+    <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+  </div>
 </section>
+
+@if (formModalOpen()) {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()">
+    <section class="panel modal-shell modal-shell-wide" role="dialog" aria-modal="true" aria-label="Formulario de entrega" (click)="stopModalClose($event)">
+      <div class="modal-head">
+        <h2>Registrar entrega con firma</h2>
+        <button type="button" class="ghost-button" (click)="closeModal()">Cerrar</button>
+      </div>
+
+      <form class="form-grid" [formGroup]="deliveryForm()" (ngSubmit)="submitDelivery()">
+        <label class="field">
+          <span>Categoria</span>
+          <select formControlName="deliveryType" (change)="resetItemsForCurrentMode()">
+            <option value="IMPLEMENTOS">Dotacion</option>
+            <option value="REGALOS">Regalo</option>
+          </select>
+        </label>
+
+        <label class="field field-full">
+          <span>Empleado</span>
+          <select formControlName="employeeId" (change)="resetItemsForCurrentMode()">
+            <option value="">Selecciona un empleado</option>
+            @for (employee of employees(); track employee.id) {
+              <option [value]="employee.id">{{ employee.fullName }} · {{ employee.documentNumber }}</option>
+            }
+          </select>
+          @if (hasControlError('employeeId', 'required')) {
+            <small class="field-error">Debes seleccionar un empleado.</small>
+          }
+          @for (error of backendErrorsForControl('employeeId'); track error) {
+            <small class="field-error">{{ error }}</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Fecha de entrega</span>
+          <input type="date" formControlName="deliveredAt" />
+          @if (hasControlError('deliveredAt', 'required')) {
+            <small class="field-error">Debes indicar la fecha de entrega.</small>
+          }
+          @for (error of backendErrorsForControl('deliveredAt'); track error) {
+            <small class="field-error">{{ error }}</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Entregado por</span>
+          <input type="text" formControlName="deliveredBy" />
+          @if (hasControlError('deliveredBy', 'required')) {
+            <small class="field-error">Debes indicar quien realiza la entrega.</small>
+          }
+          @if (hasControlError('deliveredBy', 'maxlength')) {
+            <small class="field-error">Maximo 140 caracteres.</small>
+          }
+          @for (error of backendErrorsForControl('deliveredBy'); track error) {
+            <small class="field-error">{{ error }}</small>
+          }
+        </label>
+
+        <label class="field field-full">
+          <span>Nombre de quien firma</span>
+          <input type="text" formControlName="signerName" />
+          @if (hasControlError('signerName', 'maxlength')) {
+            <small class="field-error">Maximo 140 caracteres.</small>
+          }
+          @for (error of backendErrorsForControl('signerName'); track error) {
+            <small class="field-error">{{ error }}</small>
+          }
+        </label>
+
+        <div class="field field-full" formArrayName="items">
+          <span class="field-label">Items entregados</span>
+          @if (selectedDeliveryType() === 'REGALOS') {
+            <p class="muted">Modo regalos activo: no se exige requerimiento, pero si stock disponible.</p>
+          } @else if (!selectedEmployeeId()) {
+            <p class="muted">Selecciona un empleado para cargar los implementos de dotacion solicitados y pendientes.</p>
+          } @else if (modeItems().length === 0) {
+            <p class="muted">Este empleado no tiene solicitudes pendientes de dotacion.</p>
+          } @else {
+            <p class="muted">Modo implementos activo: solo se muestran items solicitados y pendientes por entregar.</p>
+          }
+
+          @for (itemGroup of deliveryItems().controls; track $index; let index = $index) {
+            <div class="delivery-item-row" [formGroupName]="index">
+              <select formControlName="itemTypeId" (change)="onItemTypeSelected(index)">
+                <option value="">Item</option>
+                @for (item of modeItems(); track item.id) {
+                  <option [value]="item.id" [disabled]="item.availableStock <= 0">
+                    {{ item.code }} · {{ item.name }} (stock: {{ item.availableStock }}){{ selectedDeliveryType() === 'IMPLEMENTOS' ? ' · pendiente: ' + pendingQuantityForItem(item.id) : '' }}
+                  </option>
+                }
+              </select>
+              @if (hasItemControlError(index, 'itemTypeId', 'required')) {
+                <small class="field-error">Selecciona un item.</small>
+              }
+              @for (error of backendErrorsForItemControl(index, 'itemTypeId'); track error) {
+                <small class="field-error">{{ error }}</small>
+              }
+
+              <input type="number" min="1" formControlName="quantity" />
+              @if (hasItemControlError(index, 'quantity', 'required')) {
+                <small class="field-error">Cantidad requerida.</small>
+              }
+              @if (hasItemControlError(index, 'quantity', 'min')) {
+                <small class="field-error">La cantidad minima es 1.</small>
+              }
+              @for (error of backendErrorsForItemControl(index, 'quantity'); track error) {
+                <small class="field-error">{{ error }}</small>
+              }
+
+              <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="removeDeliveryItem.emit(index)">
+                Quitar
+              </button>
+            </div>
+          }
+
+          <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="addDeliveryItem.emit()">
+            Agregar item
+          </button>
+        </div>
+
+        <label class="field field-full">
+          <span>Notas</span>
+          <textarea rows="3" formControlName="notes"></textarea>
+          @if (hasControlError('notes', 'maxlength')) {
+            <small class="field-error">Maximo 1000 caracteres.</small>
+          }
+          @for (error of backendErrorsForControl('notes'); track error) {
+            <small class="field-error">{{ error }}</small>
+          }
+        </label>
+
+        <label class="toggle-field field-full">
+          <input type="checkbox" formControlName="duplicateAcknowledged" />
+          <span>
+            Confirmo bajo mi responsabilidad una posible entrega duplicada al empleado.
+            Esta seleccion queda registrada como evidencia administrativa.
+          </span>
+        </label>
+
+        <div class="field field-full">
+          <span class="field-label">Firma digital</span>
+          <app-signature-pad (signatureChange)="signatureChange.emit($event)"></app-signature-pad>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-button" [disabled]="!canManage()">Guardar entrega</button>
+          <button type="button" class="ghost-button" (click)="closeModal()">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}

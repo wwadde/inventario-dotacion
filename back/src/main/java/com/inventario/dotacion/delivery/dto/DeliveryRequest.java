@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import com.inventario.dotacion.delivery.DeliveryType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -13,6 +14,8 @@ import jakarta.validation.constraints.Size;
 public record DeliveryRequest(
         @NotNull(message = "El empleado es obligatorio")
         UUID employeeId,
+
+        DeliveryType deliveryType,
 
         LocalDate deliveredAt,
 
@@ -27,6 +30,8 @@ public record DeliveryRequest(
         String notes,
 
         String signatureDataUrl,
+
+        Boolean duplicateAcknowledged,
 
         @NotEmpty(message = "Debe registrar al menos un implemento")
         List<@Valid DeliveryItemRequest> items

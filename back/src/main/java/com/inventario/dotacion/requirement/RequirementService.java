@@ -8,6 +8,7 @@ import com.inventario.dotacion.common.exception.ResourceNotFoundException;
 import com.inventario.dotacion.common.security.DataPrivacyService;
 import com.inventario.dotacion.employee.Employee;
 import com.inventario.dotacion.employee.EmployeeService;
+import com.inventario.dotacion.item.ItemCategory;
 import com.inventario.dotacion.item.ItemType;
 import com.inventario.dotacion.item.ItemTypeService;
 import com.inventario.dotacion.requirement.dto.RequirementResponse;
@@ -40,11 +41,17 @@ public class RequirementService {
     public RequirementResponse createRequirement(RequirementUpsertRequest request) {
         if (requirementRepository.existsByEmployeeIdAndItemTypeId(request.employeeId(), request.itemTypeId())) {
             throw new BusinessException(HttpStatus.CONFLICT,
-                    "Ya existe un requerimiento para este empleado e implemento.");
+                    "Ya existe una solicitud para este empleado e implemento.");
         }
 
         Employee employee = employeeService.findById(request.employeeId());
-        ItemType itemType = itemTypeService.findById(request.itemTypeId());
+        if (!employee.isActive()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "No se puede registrar solicitud para un empleado inactivo.");
+        }
+
+        ItemType itemType = itemTypeService.findActiveById(request.itemTypeId());
+        validateDotacionCategory(itemType);
 
         EmployeeRequirement requirement = new EmployeeRequirement();
         requirement.setEmployee(employee);
@@ -67,11 +74,20 @@ public class RequirementService {
         if (changedEmployeeOrItem
                 && requirementRepository.existsByEmployeeIdAndItemTypeId(request.employeeId(), request.itemTypeId())) {
             throw new BusinessException(HttpStatus.CONFLICT,
-                    "Ya existe un requerimiento para este empleado e implemento.");
+                    "Ya existe una solicitud para este empleado e implemento.");
         }
 
-        requirement.setEmployee(employeeService.findById(request.employeeId()));
-        requirement.setItemType(itemTypeService.findById(request.itemTypeId()));
+        Employee employee = employeeService.findById(request.employeeId());
+        if (!employee.isActive()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "No se puede registrar solicitud para un empleado inactivo.");
+        }
+
+        ItemType itemType = itemTypeService.findActiveById(request.itemTypeId());
+        validateDotacionCategory(itemType);
+
+        requirement.setEmployee(employee);
+        requirement.setItemType(itemType);
         apply(requirement, request);
 
         return toResponse(requirementRepository.save(requirement), true);
@@ -85,13 +101,19 @@ public class RequirementService {
 
     private EmployeeRequirement findById(UUID requirementId) {
         return requirementRepository.findById(requirementId)
-                .orElseThrow(() -> new ResourceNotFoundException("No existe el requerimiento solicitado."));
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la solicitud solicitada."));
     }
 
     private void apply(EmployeeRequirement requirement, RequirementUpsertRequest request) {
-        requirement.setPeriodicityMonths(request.periodicityMonths());
-        requirement.setEffectiveFrom(request.effectiveFrom());
+        requirement.setRequestedQuantity(request.requestedQuantity());
         requirement.setNotes(normalizeNullable(request.notes()));
+    }
+
+    private void validateDotacionCategory(ItemType itemType) {
+        if (itemType.getCategory() != ItemCategory.DOTACION) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "Solo se pueden solicitar implementos de categoria Dotacion.");
+        }
     }
 
     private String normalizeNullable(String value) {
@@ -114,8 +136,7 @@ public class RequirementService {
                 requirement.getItemType().getId(),
                 requirement.getItemType().getCode(),
                 requirement.getItemType().getName(),
-                requirement.getPeriodicityMonths(),
-                requirement.getEffectiveFrom(),
+                requirement.getRequestedQuantity(),
                 requirement.getNotes(),
                 requirement.getCreatedAt(),
                 requirement.getUpdatedAt()

@@ -1,7 +1,10 @@
 package com.inventario.dotacion.employee.dto;
 
+import java.time.LocalDate;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 
 public record EmployeeUpsertRequest(
@@ -29,6 +32,9 @@ public record EmployeeUpsertRequest(
 
         @Size(max = 120, message = "El cargo no puede superar 120 caracteres")
         String position,
+
+        @PastOrPresent(message = "La fecha de cumpleanos no puede estar en el futuro")
+        LocalDate birthDate,
 
         Boolean active
 ) {

@@ -1,12 +1,16 @@
 package com.inventario.dotacion.item;
 
 import java.util.List;
+import java.math.RoundingMode;
 import java.util.UUID;
 
 import com.inventario.dotacion.common.exception.BusinessException;
 import com.inventario.dotacion.common.exception.ResourceNotFoundException;
+import com.inventario.dotacion.item.dto.ItemStockInboundRequest;
 import com.inventario.dotacion.item.dto.ItemTypeResponse;
 import com.inventario.dotacion.item.dto.ItemTypeUpsertRequest;
+import com.inventario.dotacion.item.stock.StockMovementService;
+import com.inventario.dotacion.item.stock.StockMovementType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,6 +22,7 @@ import org.springframework.util.StringUtils;
 public class ItemTypeService {
 
     private final ItemTypeRepository itemTypeRepository;
+    private final StockMovementService stockMovementService;
 
     @Transactional(readOnly = true)
     public List<ItemTypeResponse> listItems(boolean activeOnly) {
@@ -62,6 +67,29 @@ public class ItemTypeService {
         itemTypeRepository.save(itemType);
     }
 
+    @Transactional
+    public ItemTypeResponse addInboundStock(UUID itemTypeId, ItemStockInboundRequest request, String performedBy) {
+        ItemType itemType = findActiveByIdForUpdate(itemTypeId);
+
+        int stockBefore = itemType.getAvailableStock();
+        int stockAfter = stockBefore + request.quantity();
+        itemType.setAvailableStock(stockAfter);
+
+        stockMovementService.registerMovement(
+                itemType,
+                StockMovementType.INBOUND,
+                request.quantity(),
+                stockBefore,
+                stockAfter,
+                request.reason(),
+                "MANUAL_INBOUND",
+                null,
+                performedBy
+        );
+
+        return toResponse(itemTypeRepository.save(itemType));
+    }
+
     public ItemType findById(UUID itemTypeId) {
         return itemTypeRepository.findById(itemTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe el implemento solicitado."));
@@ -72,6 +100,12 @@ public class ItemTypeService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
                         "El implemento seleccionado no existe o esta inactivo."));
     }
+
+        public ItemType findActiveByIdForUpdate(UUID itemTypeId) {
+        return itemTypeRepository.findByIdAndActiveTrueForUpdate(itemTypeId)
+            .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
+                "El implemento seleccionado no existe o esta inactivo."));
+        }
 
     private void validateCodeUniqueness(String code, UUID itemTypeIdToSkip) {
         boolean duplicated = itemTypeRepository.findByCodeIgnoreCase(code)
@@ -88,7 +122,8 @@ public class ItemTypeService {
         itemType.setName(request.name().trim());
         itemType.setCategory(request.category());
         itemType.setDescription(normalizeNullable(request.description()));
-        itemType.setDefaultPeriodicityMonths(request.defaultPeriodicityMonths());
+        itemType.setUnitCost(request.unitCost().setScale(2, RoundingMode.HALF_UP));
+        itemType.setAvailableStock(request.availableStock());
     }
 
     private String normalizeNullable(String value) {
@@ -105,7 +140,8 @@ public class ItemTypeService {
                 itemType.getName(),
                 itemType.getCategory(),
                 itemType.getDescription(),
-                itemType.getDefaultPeriodicityMonths(),
+                itemType.getUnitCost(),
+                itemType.getAvailableStock(),
                 itemType.isActive(),
                 itemType.getCreatedAt(),
                 itemType.getUpdatedAt()

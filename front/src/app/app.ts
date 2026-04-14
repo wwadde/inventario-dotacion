@@ -47,9 +47,22 @@ export class App {
   protected readonly dashboard = this.facade.dashboard;
   protected readonly pendingRows = this.facade.pendingRows;
   protected readonly recentDeliveries = this.facade.recentDeliveries;
+  protected readonly activeEmployeesCount = this.facade.activeEmployeesCount;
+  protected readonly pendingEmployeesCount = this.facade.pendingEmployeesCount;
+  protected readonly upToDateEmployeesCount = this.facade.upToDateEmployeesCount;
+  protected readonly complianceCoveragePercent = this.facade.complianceCoveragePercent;
+  protected readonly pendingEmployeesPercent = this.facade.pendingEmployeesPercent;
+  protected readonly pendingRequirementTotal = this.facade.pendingRequirementTotal;
+  protected readonly deliveredRequirementsTotal = this.facade.deliveredRequirementsTotal;
+  protected readonly deliveredRequirementsPercent = this.facade.deliveredRequirementsPercent;
+  protected readonly pendingRequirementsPercent = this.facade.pendingRequirementsPercent;
+  protected readonly deliveredCostThisMonth = this.facade.deliveredCostThisMonth;
+  protected readonly pendingEstimatedCost = this.facade.pendingEstimatedCost;
+  protected readonly birthdaysToday = this.facade.birthdaysToday;
 
   protected readonly employeeForm = this.facade.employeeForm;
   protected readonly editingEmployeeId = this.facade.editingEmployeeId;
+  protected readonly employeeSubmitState = this.facade.employeeSubmitState;
   protected readonly employeeQuery = this.facade.employeeQuery;
   protected readonly filteredEmployees = this.facade.filteredEmployees;
   protected readonly paginatedEmployees = this.facade.paginatedEmployees;
@@ -58,6 +71,10 @@ export class App {
 
   protected readonly itemForm = this.facade.itemForm;
   protected readonly editingItemId = this.facade.editingItemId;
+  protected readonly itemSubmitState = this.facade.itemSubmitState;
+  protected readonly stockSubmitState = this.facade.stockSubmitState;
+  protected readonly selectedStockItemId = this.facade.selectedStockItemId;
+  protected readonly stockMovements = this.facade.stockMovements;
   protected readonly itemCategories = this.facade.itemCategories;
   protected readonly itemCategoryLabel = this.facade.itemCategoryLabel;
   protected readonly itemQuery = this.facade.itemQuery;
@@ -65,10 +82,13 @@ export class App {
   protected readonly paginatedItems = this.facade.paginatedItems;
   protected readonly itemCurrentPage = this.facade.itemCurrentPage;
   protected readonly itemTotalPages = this.facade.itemTotalPages;
-
-  protected readonly requirementForm = this.facade.requirementForm;
   protected readonly employees = this.facade.employees;
   protected readonly items = this.facade.items;
+  protected readonly requirements = this.facade.requirements;
+
+  protected readonly requirementForm = this.facade.requirementForm;
+  protected readonly editingRequirementId = this.facade.editingRequirementId;
+  protected readonly requirementSubmitState = this.facade.requirementSubmitState;
   protected readonly requirementQuery = this.facade.requirementQuery;
   protected readonly filteredRequirements = this.facade.filteredRequirements;
   protected readonly paginatedRequirements = this.facade.paginatedRequirements;
@@ -76,9 +96,12 @@ export class App {
   protected readonly requirementTotalPages = this.facade.requirementTotalPages;
 
   protected readonly deliveryForm = this.facade.deliveryForm;
+  protected readonly deliverySubmitState = this.facade.deliverySubmitState;
+  protected readonly deliveryValidationErrors = this.facade.deliveryValidationErrors;
+  protected readonly deliveries = this.facade.deliveries;
   protected readonly deliveryQuery = this.facade.deliveryQuery;
-  protected readonly filteredDeliveries = this.facade.filteredDeliveries;
-  protected readonly paginatedDeliveries = this.facade.paginatedDeliveries;
+  protected readonly filteredDeliveriesTable = this.facade.filteredDeliveriesTable;
+  protected readonly paginatedDeliveriesTable = this.facade.paginatedDeliveriesTable;
   protected readonly deliveryCurrentPage = this.facade.deliveryCurrentPage;
   protected readonly deliveryTotalPages = this.facade.deliveryTotalPages;
 
@@ -94,7 +117,7 @@ export class App {
     return this.facade.deliveryItems;
   }
 
-  protected setView(view: 'dashboard' | 'employees' | 'items' | 'requirements' | 'deliveries' | 'reports'): void {
+  protected setView(view: 'dashboard' | 'employees' | 'items' | 'requirements' | 'deliveries-implementos' | 'reports'): void {
     this.facade.setView(view);
   }
 
@@ -210,8 +233,24 @@ export class App {
     return this.facade.deactivateItem(item);
   }
 
-  protected createRequirement(): Promise<void> {
-    return this.facade.createRequirement();
+  protected addInboundStock(event: { itemId: string; quantity: number; reason: string | null }): Promise<void> {
+    return this.facade.addInboundStock(event.itemId, event.quantity, event.reason);
+  }
+
+  protected selectStockMovementItem(itemId: string | null): Promise<void> {
+    return this.facade.selectStockMovementItem(itemId);
+  }
+
+  protected saveRequirement(): Promise<void> {
+    return this.facade.saveRequirement();
+  }
+
+  protected editRequirement(requirement: Requirement): void {
+    this.facade.editRequirement(requirement);
+  }
+
+  protected cancelRequirementEdition(): void {
+    this.facade.cancelRequirementEdition();
   }
 
   protected deleteRequirement(requirement: Requirement): Promise<void> {
@@ -240,6 +279,10 @@ export class App {
 
   protected exportComplianceExcel(): Promise<void> {
     return this.facade.exportComplianceExcel();
+  }
+
+  protected isDeliveriesView(): boolean {
+    return this.currentView() === 'deliveries-implementos';
   }
 
 }

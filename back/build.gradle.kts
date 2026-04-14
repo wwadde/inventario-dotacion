@@ -23,8 +23,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-flyway")
+	implementation("org.springframework.boot:spring-boot-starter-mail")
 	implementation("org.flywaydb:flyway-core")
-	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 	implementation("org.apache.poi:poi-ooxml:5.5.1")
 	implementation("com.github.librepdf:openpdf:3.0.3")
@@ -40,6 +40,7 @@ dependencies {
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 
 
+	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
 
 
@@ -50,6 +51,7 @@ dependencies {
 
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-mail-test")
 	testImplementation("org.springframework.security:spring-security-test")
 
 	testCompileOnly("org.projectlombok:lombok")

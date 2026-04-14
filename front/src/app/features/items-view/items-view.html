@@ -1,107 +1,236 @@
-<section class="split">
-  <article class="panel form-panel">
-    <h2>{{ editingItemId() ? 'Editar implemento' : 'Registrar implemento' }}</h2>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Catalogo de implementos</h2>
+    <span>{{ filteredCount() }} resultados</span>
+  </div>
 
-    <form class="form-grid" [formGroup]="itemForm()" (ngSubmit)="saveItem.emit()">
-      <label class="field">
-        <span>Codigo</span>
-        <input type="text" formControlName="code" />
-      </label>
+  <div class="table-tools table-tools-dual">
+    <button type="button" class="primary-button" [disabled]="!canManage()" (click)="openCreateModal()">
+      Agregar implemento
+    </button>
 
-      <label class="field">
-        <span>Nombre</span>
-        <input type="text" formControlName="name" />
-      </label>
+    <input
+      class="search-input"
+      type="search"
+      [value]="itemQuery()"
+      (input)="setItemQuery.emit($any($event.target).value)"
+      placeholder="Buscar por codigo, nombre, categoria, costo o stock"
+    />
+  </div>
 
-      <label class="field">
-        <span>Categoria</span>
-        <select formControlName="category">
-          @for (category of itemCategories(); track category) {
-            <option [value]="category">{{ itemCategoryLabel()[category] }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="field">
-        <span>Periodicidad por defecto (meses)</span>
-        <input type="number" min="1" max="60" formControlName="defaultPeriodicityMonths" />
-      </label>
-
-      <label class="field field-full">
-        <span>Descripcion</span>
-        <textarea rows="3" formControlName="description"></textarea>
-      </label>
-
-      <label class="toggle-field">
-        <input type="checkbox" formControlName="active" />
-        <span>Implemento activo</span>
-      </label>
-
-      <div class="form-actions">
-        <button type="submit" class="primary-button" [disabled]="!canManage()">
-          {{ editingItemId() ? 'Actualizar' : 'Guardar' }}
-        </button>
-        @if (editingItemId()) {
-          <button type="button" class="ghost-button" (click)="cancelEdition.emit()">Cancelar</button>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Codigo</th>
+          <th>Nombre</th>
+          <th>Categoria</th>
+          <th>Costo</th>
+          <th>Stock</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of paginatedItems(); track item.id) {
+          <tr>
+            <td>{{ item.code }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ itemCategoryLabel()[item.category] }}</td>
+            <td>$ {{ item.unitCost | number:'1.0-2' }}</td>
+            <td>{{ item.availableStock }}</td>
+            <td class="row-actions">
+              <button type="button" class="primary-button" [disabled]="!canManage()" (click)="openStockModal(item)">
+                Agregar stock
+              </button>
+              <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="openEditModal(item)">Editar</button>
+              <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deactivateItem.emit(item)">
+                Desactivar
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="empty-row">No hay implementos registrados.</td>
+          </tr>
         }
-      </div>
-    </form>
-  </article>
+      </tbody>
+    </table>
+  </div>
 
-  <article class="panel">
-    <div class="panel-head">
-      <h2>Catalogo de implementos</h2>
-      <span>{{ filteredCount() }} resultados</span>
+  <div class="pagination-row">
+    <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+    <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+    <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+  </div>
+
+  <div class="panel-head traceability-head">
+    <h2>Trazabilidad de inventario</h2>
+    <div class="row-actions">
+      @if (selectedStockItemId()) {
+        <button type="button" class="ghost-button" (click)="openAllMovements()">Ver todos</button>
+      }
+      <span>{{ stockMovementsForSelectedItem().length }} movimientos</span>
     </div>
+  </div>
 
-    <div class="table-tools">
-      <input
-        class="search-input"
-        type="search"
-        [value]="itemQuery()"
-        (input)="setItemQuery.emit($any($event.target).value)"
-        placeholder="Buscar por codigo, nombre o categoria"
-      />
-    </div>
-
+  @if (stockMovementsForSelectedItem().length === 0) {
+    <p class="empty">No hay movimientos de inventario para mostrar.</p>
+  } @else {
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Codigo</th>
-            <th>Nombre</th>
-            <th>Categoria</th>
-            <th>Periodicidad</th>
-            <th>Acciones</th>
+            <th>Fecha</th>
+            <th>Implemento</th>
+            <th>Tipo</th>
+            <th>Cantidad</th>
+            <th>Antes</th>
+            <th>Despues</th>
+            <th>Usuario</th>
+            <th>Motivo</th>
           </tr>
         </thead>
         <tbody>
-          @for (item of paginatedItems(); track item.id) {
+          @for (movement of stockMovementsForSelectedItem(); track movement.id) {
             <tr>
-              <td>{{ item.code }}</td>
-              <td>{{ item.name }}</td>
-              <td>{{ itemCategoryLabel()[item.category] }}</td>
-              <td>{{ item.defaultPeriodicityMonths }} meses</td>
-              <td class="row-actions">
-                <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="editItem.emit(item)">Editar</button>
-                <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deactivateItem.emit(item)">
-                  Desactivar
-                </button>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="5" class="empty-row">No hay implementos registrados.</td>
+              <td>{{ movement.performedAt | date:'yyyy-MM-dd HH:mm' }}</td>
+              <td>{{ movement.itemCode }} · {{ movement.itemName }}</td>
+              <td><span [class]="movementTypeClass(movement.movementType)">{{ movementTypeLabel(movement.movementType) }}</span></td>
+              <td>{{ movement.quantity }}</td>
+              <td>{{ movement.stockBefore }}</td>
+              <td>{{ movement.stockAfter }}</td>
+              <td>{{ movement.performedBy }}</td>
+              <td>{{ movement.reason || movement.referenceType || 'N/A' }}</td>
             </tr>
           }
         </tbody>
       </table>
     </div>
-
-    <div class="pagination-row">
-      <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
-      <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
-      <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
-    </div>
-  </article>
+  }
 </section>
+
+@if (formModalOpen()) {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()">
+    <section class="panel modal-shell" role="dialog" aria-modal="true" aria-label="Formulario de implemento" (click)="stopModalClose($event)">
+      <div class="modal-head">
+        <h2>{{ editingItemId() ? 'Editar implemento' : 'Agregar implemento' }}</h2>
+        <button type="button" class="ghost-button" (click)="closeModal()">Cerrar</button>
+      </div>
+
+      <form class="form-grid" [formGroup]="itemForm()" (ngSubmit)="submitForm()">
+        <label class="field">
+          <span>Codigo</span>
+          <input type="text" formControlName="code" />
+          @if (hasItemControlError('code', 'required')) {
+            <small class="field-error">El codigo es obligatorio.</small>
+          }
+          @if (hasItemControlError('code', 'maxlength')) {
+            <small class="field-error">Maximo 30 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Nombre</span>
+          <input type="text" formControlName="name" />
+          @if (hasItemControlError('name', 'required')) {
+            <small class="field-error">El nombre es obligatorio.</small>
+          }
+          @if (hasItemControlError('name', 'maxlength')) {
+            <small class="field-error">Maximo 140 caracteres.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Categoria</span>
+          <select formControlName="category">
+            @for (category of itemCategories(); track category) {
+              <option [value]="category">{{ itemCategoryLabel()[category] }}</option>
+            }
+          </select>
+          @if (hasItemControlError('category', 'required')) {
+            <small class="field-error">Debes seleccionar una categoria.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Costo unitario</span>
+          <input type="number" min="0" step="0.01" formControlName="unitCost" />
+          @if (hasItemControlError('unitCost', 'required')) {
+            <small class="field-error">El costo unitario es obligatorio.</small>
+          }
+          @if (hasItemControlError('unitCost', 'min')) {
+            <small class="field-error">El costo no puede ser negativo.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Stock disponible</span>
+          <input type="number" min="0" step="1" formControlName="availableStock" />
+          @if (hasItemControlError('availableStock', 'required')) {
+            <small class="field-error">El stock disponible es obligatorio.</small>
+          }
+          @if (hasItemControlError('availableStock', 'min')) {
+            <small class="field-error">El stock no puede ser negativo.</small>
+          }
+        </label>
+
+        <label class="field field-full">
+          <span>Descripcion</span>
+          <textarea rows="3" formControlName="description"></textarea>
+          @if (hasItemControlError('description', 'maxlength')) {
+            <small class="field-error">Maximo 500 caracteres.</small>
+          }
+        </label>
+
+        <label class="toggle-field field-full">
+          <input type="checkbox" formControlName="active" />
+          <span>Implemento activo</span>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-button" [disabled]="!canManage()">
+            {{ editingItemId() ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button type="button" class="ghost-button" (click)="closeModal()">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (stockModalOpen()) {
+  <div class="modal-backdrop" role="presentation" (click)="closeStockModal()">
+    <section class="panel modal-shell" role="dialog" aria-modal="true" aria-label="Ingreso de stock" (click)="stopModalClose($event)">
+      <div class="modal-head">
+        <h2>Agregar stock · {{ stockItem()?.code }} {{ stockItem()?.name }}</h2>
+        <button type="button" class="ghost-button" (click)="closeStockModal()">Cerrar</button>
+      </div>
+
+      <form class="form-grid" [formGroup]="stockForm" (ngSubmit)="submitStockForm()">
+        <label class="field">
+          <span>Cantidad de ingreso</span>
+          <input type="number" min="1" step="1" formControlName="quantity" />
+          @if (hasStockControlError('quantity', 'required')) {
+            <small class="field-error">La cantidad es obligatoria.</small>
+          }
+          @if (hasStockControlError('quantity', 'min')) {
+            <small class="field-error">La cantidad minima es 1.</small>
+          }
+        </label>
+
+        <label class="field field-full">
+          <span>Motivo / referencia</span>
+          <textarea rows="3" formControlName="reason"></textarea>
+          @if (hasStockControlError('reason', 'maxlength')) {
+            <small class="field-error">Maximo 400 caracteres.</small>
+          }
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-button" [disabled]="!canManage()">Registrar ingreso</button>
+          <button type="button" class="ghost-button" (click)="closeStockModal()">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}

@@ -1,6 +1,7 @@
 package com.inventario.dotacion.employee;
 
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -46,6 +47,9 @@ public class Employee {
 
     @Column(length = 120)
     private String position;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
 
     @Column(nullable = false)
     private boolean active = true;

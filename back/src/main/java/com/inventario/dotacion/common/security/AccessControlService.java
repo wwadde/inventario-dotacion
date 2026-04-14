@@ -21,4 +21,22 @@ public class AccessControlService {
         return authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
+
+    public String currentUsernameOrSystem() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "system";
+        }
+
+        if (authentication instanceof AnonymousAuthenticationToken) {
+            return "system";
+        }
+
+        String name = authentication.getName();
+        if (name == null || name.isBlank()) {
+            return "system";
+        }
+
+        return name.trim();
+    }
 }

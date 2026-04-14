@@ -2,6 +2,7 @@ package com.inventario.dotacion.requirement;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -15,8 +16,11 @@ public interface EmployeeRequirementRepository extends JpaRepository<EmployeeReq
     @EntityGraph(attributePaths = {"employee", "itemType"})
     List<EmployeeRequirement> findByEmployeeIdOrderByCreatedAtDesc(UUID employeeId);
 
-    boolean existsByEmployeeIdAndItemTypeId(UUID employeeId, UUID itemTypeId);
-
     @EntityGraph(attributePaths = {"employee", "itemType"})
     List<EmployeeRequirement> findByEmployeeIdIn(Collection<UUID> employeeIds);
+
+    @EntityGraph(attributePaths = {"employee", "itemType"})
+    Optional<EmployeeRequirement> findByEmployeeIdAndItemTypeId(UUID employeeId, UUID itemTypeId);
+
+    boolean existsByEmployeeIdAndItemTypeId(UUID employeeId, UUID itemTypeId);
 }

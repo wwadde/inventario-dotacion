@@ -1,6 +1,7 @@
 package com.inventario.dotacion.employee.dto;
 
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public record EmployeeResponse(
@@ -13,6 +14,7 @@ public record EmployeeResponse(
         String phone,
         String area,
         String position,
+        LocalDate birthDate,
         boolean active,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

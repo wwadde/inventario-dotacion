@@ -86,13 +86,53 @@
     </section>
   }
 
+  @if (isDeliveriesView()) {
+    <app-deliveries-view
+      [deliveryForm]="deliveryForm"
+      [deliveryItems]="deliveryItems"
+      [submitState]="deliverySubmitState()"
+      [validationErrors]="deliveryValidationErrors()"
+      [employees]="employees()"
+      [items]="items()"
+      [requirements]="requirements()"
+      [allDeliveries]="deliveries()"
+      [canManage]="canManage()"
+      [deliveryQuery]="deliveryQuery()"
+      [filteredCount]="filteredDeliveriesTable().length"
+      [paginatedDeliveries]="paginatedDeliveriesTable()"
+      [currentPage]="deliveryCurrentPage()"
+      [totalPages]="deliveryTotalPages()"
+      (setDeliveryQuery)="setDeliveryQuery($event)"
+      (createDelivery)="createDelivery()"
+      (addDeliveryItem)="addDeliveryItem()"
+      (removeDeliveryItem)="removeDeliveryItem($event)"
+      (signatureChange)="onSignatureChanged($event)"
+      (viewCertificate)="downloadCertificate($event)"
+      (previousPage)="previousDeliveryPage()"
+      (nextPage)="nextDeliveryPage()"
+    />
+  } @else {
   @switch (currentView()) {
     @case ('dashboard') {
       <app-dashboard-view
         [dashboard]="dashboard()"
+        [employees]="employees()"
         [pendingRows]="pendingRows()"
         [recentDeliveries]="recentDeliveries()"
         [canManage]="canManage()"
+        [activeEmployeesCount]="activeEmployeesCount()"
+        [pendingEmployeesCount]="pendingEmployeesCount()"
+        [upToDateEmployeesCount]="upToDateEmployeesCount()"
+        [complianceCoveragePercent]="complianceCoveragePercent()"
+        [pendingEmployeesPercent]="pendingEmployeesPercent()"
+        [pendingRequirementTotal]="pendingRequirementTotal()"
+        [deliveredRequirementsTotal]="deliveredRequirementsTotal()"
+        [deliveredRequirementsPercent]="deliveredRequirementsPercent()"
+        [pendingRequirementsPercent]="pendingRequirementsPercent()"
+        [deliveredCostThisMonth]="deliveredCostThisMonth()"
+        [pendingEstimatedCost]="pendingEstimatedCost()"
+        [birthdaysToday]="birthdaysToday()"
+        (openView)="setView($event)"
         (viewCertificate)="downloadCertificate($event)"
       />
     }
@@ -101,7 +141,9 @@
       <app-employees-view
         [employeeForm]="employeeForm"
         [editingEmployeeId]="editingEmployeeId()"
+        [submitState]="employeeSubmitState()"
         [canManage]="canManage()"
+        [deliveries]="deliveries()"
         [employeeQuery]="employeeQuery()"
         [filteredCount]="filteredEmployees().length"
         [paginatedEmployees]="paginatedEmployees()"
@@ -121,6 +163,10 @@
       <app-items-view
         [itemForm]="itemForm"
         [editingItemId]="editingItemId()"
+        [submitState]="itemSubmitState()"
+        [stockSubmitState]="stockSubmitState()"
+        [selectedStockItemId]="selectedStockItemId()"
+        [stockMovements]="stockMovements()"
         [canManage]="canManage()"
         [itemCategories]="itemCategories"
         [itemCategoryLabel]="itemCategoryLabel"
@@ -131,6 +177,8 @@
         [totalPages]="itemTotalPages()"
         (setItemQuery)="setItemQuery($event)"
         (saveItem)="saveItem()"
+        (addInboundStock)="addInboundStock($event)"
+        (selectStockMovementItem)="selectStockMovementItem($event)"
         (cancelEdition)="cancelItemEdition()"
         (editItem)="editItem($event)"
         (deactivateItem)="deactivateItem($event)"
@@ -142,6 +190,8 @@
     @case ('requirements') {
       <app-requirements-view
         [requirementForm]="requirementForm"
+        [editingRequirementId]="editingRequirementId()"
+        [submitState]="requirementSubmitState()"
         [employees]="employees()"
         [items]="items()"
         [canManage]="canManage()"
@@ -151,33 +201,12 @@
         [currentPage]="requirementCurrentPage()"
         [totalPages]="requirementTotalPages()"
         (setRequirementQuery)="setRequirementQuery($event)"
-        (createRequirement)="createRequirement()"
+        (saveRequirement)="saveRequirement()"
+        (cancelEdition)="cancelRequirementEdition()"
+        (editRequirement)="editRequirement($event)"
         (deleteRequirement)="deleteRequirement($event)"
         (previousPage)="previousRequirementPage()"
         (nextPage)="nextRequirementPage()"
-      />
-    }
-
-    @case ('deliveries') {
-      <app-deliveries-view
-        [deliveryForm]="deliveryForm"
-        [deliveryItems]="deliveryItems"
-        [employees]="employees()"
-        [items]="items()"
-        [canManage]="canManage()"
-        [deliveryQuery]="deliveryQuery()"
-        [filteredCount]="filteredDeliveries().length"
-        [paginatedDeliveries]="paginatedDeliveries()"
-        [currentPage]="deliveryCurrentPage()"
-        [totalPages]="deliveryTotalPages()"
-        (setDeliveryQuery)="setDeliveryQuery($event)"
-        (createDelivery)="createDelivery()"
-        (addDeliveryItem)="addDeliveryItem()"
-        (removeDeliveryItem)="removeDeliveryItem($event)"
-        (signatureChange)="onSignatureChanged($event)"
-        (viewCertificate)="downloadCertificate($event)"
-        (previousPage)="previousDeliveryPage()"
-        (nextPage)="nextDeliveryPage()"
       />
     }
 
@@ -197,5 +226,6 @@
         (nextPage)="nextReportPage()"
       />
     }
+  }
   }
 </main>

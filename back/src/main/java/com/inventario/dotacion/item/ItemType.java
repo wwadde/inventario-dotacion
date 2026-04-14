@@ -1,6 +1,7 @@
 package com.inventario.dotacion.item;
 
 import java.time.OffsetDateTime;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -41,8 +42,11 @@ public class ItemType {
     @Column(length = 500)
     private String description;
 
-    @Column(name = "default_periodicity_months", nullable = false)
-    private int defaultPeriodicityMonths;
+    @Column(name = "unit_cost", nullable = false, precision = 12, scale = 2)
+    private BigDecimal unitCost;
+
+    @Column(name = "available_stock", nullable = false)
+    private int availableStock;
 
     @Column(nullable = false)
     private boolean active = true;

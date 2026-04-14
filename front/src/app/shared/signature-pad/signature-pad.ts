@@ -78,6 +78,9 @@ import {
 export class SignaturePad implements AfterViewInit {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('signatureCanvas');
   private readonly isDrawing = signal(false);
+  private readonly exportedWidth = 520;
+  private readonly exportedHeight = 180;
+  private pixelRatio = 1;
 
   signatureChange = output<string | null>();
   lineColor = input('#132030');
@@ -99,8 +102,7 @@ export class SignaturePad implements AfterViewInit {
       return;
     }
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.signatureChange.emit(null);
   }
 
@@ -147,12 +149,13 @@ export class SignaturePad implements AfterViewInit {
     this.isDrawing.set(false);
     canvas.releasePointerCapture(event.pointerId);
 
-    this.signatureChange.emit(canvas.toDataURL('image/png'));
+    this.signatureChange.emit(this.buildTrimmedSignatureDataUrl(canvas));
   }
 
   private resizeCanvas(): void {
     const canvas = this.canvasRef().nativeElement;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    this.pixelRatio = ratio;
     const rect = canvas.getBoundingClientRect();
 
     const previous = canvas.toDataURL('image/png');
@@ -165,8 +168,7 @@ export class SignaturePad implements AfterViewInit {
     }
 
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (previous !== 'data:,') {
       const image = new Image();
@@ -175,6 +177,87 @@ export class SignaturePad implements AfterViewInit {
       };
       image.src = previous;
     }
+  }
+
+  private buildTrimmedSignatureDataUrl(canvas: HTMLCanvasElement): string | null {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return null;
+    }
+
+    const { width, height } = canvas;
+    const imageData = ctx.getImageData(0, 0, width, height).data;
+
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const alpha = imageData[(y * width + x) * 4 + 3];
+        if (alpha === 0) {
+          continue;
+        }
+
+        if (x < minX) {
+          minX = x;
+        }
+        if (y < minY) {
+          minY = y;
+        }
+        if (x > maxX) {
+          maxX = x;
+        }
+        if (y > maxY) {
+          maxY = y;
+        }
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      return null;
+    }
+
+    const padding = Math.max(4, Math.round(8 * this.pixelRatio));
+    const sourceX = Math.max(0, minX - padding);
+    const sourceY = Math.max(0, minY - padding);
+    const sourceWidth = Math.min(width - sourceX, maxX - minX + 1 + padding * 2);
+    const sourceHeight = Math.min(height - sourceY, maxY - minY + 1 + padding * 2);
+
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = this.exportedWidth;
+    outputCanvas.height = this.exportedHeight;
+
+    const outputCtx = outputCanvas.getContext('2d');
+    if (!outputCtx) {
+      return null;
+    }
+
+    const horizontalPadding = 26;
+    const verticalPadding = 18;
+    const maxDrawWidth = this.exportedWidth - horizontalPadding * 2;
+    const maxDrawHeight = this.exportedHeight - verticalPadding * 2;
+    const scale = Math.min(maxDrawWidth / sourceWidth, maxDrawHeight / sourceHeight);
+
+    const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+    const offsetX = Math.round((this.exportedWidth - drawWidth) / 2);
+    const offsetY = Math.round((this.exportedHeight - drawHeight) / 2);
+
+    outputCtx.drawImage(
+      canvas,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      offsetX,
+      offsetY,
+      drawWidth,
+      drawHeight,
+    );
+
+    return outputCanvas.toDataURL('image/png');
   }
 
   private getPoint(event: PointerEvent, canvas: HTMLCanvasElement): { x: number; y: number } {

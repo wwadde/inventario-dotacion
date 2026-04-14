@@ -1,102 +1,129 @@
-<section class="split">
-  <article class="panel form-panel">
-    <h2>Asignar requerimiento</h2>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Solicitudes de dotacion</h2>
+    <span>{{ filteredCount() }} resultados</span>
+  </div>
 
-    <form class="form-grid" [formGroup]="requirementForm()" (ngSubmit)="createRequirement.emit()">
-      <label class="field field-full">
-        <span>Empleado</span>
-        <select formControlName="employeeId">
-          <option value="">Selecciona un empleado</option>
-          @for (employee of employees(); track employee.id) {
-            <option [value]="employee.id">{{ employee.fullName }} · {{ employee.documentNumber }}</option>
-          }
-        </select>
-      </label>
+  <div class="table-tools table-tools-dual">
+    <button type="button" class="primary-button" [disabled]="!canManage()" (click)="openCreateModal()">
+      Agregar solicitud
+    </button>
 
-      <label class="field field-full">
-        <span>Implemento</span>
-        <select formControlName="itemTypeId">
-          <option value="">Selecciona un implemento</option>
-          @for (item of items(); track item.id) {
-            <option [value]="item.id">{{ item.code }} · {{ item.name }}</option>
-          }
-        </select>
-      </label>
+    <input
+      class="search-input"
+      type="search"
+      [value]="requirementQuery()"
+      (input)="setRequirementQuery.emit($any($event.target).value)"
+      placeholder="Buscar por empleado, documento o implemento"
+    />
+  </div>
 
-      <label class="field">
-        <span>Periodicidad (meses)</span>
-        <input type="number" min="1" max="60" formControlName="periodicityMonths" />
-      </label>
-
-      <label class="field">
-        <span>Vigente desde</span>
-        <input type="date" formControlName="effectiveFrom" />
-      </label>
-
-      <label class="field field-full">
-        <span>Notas</span>
-        <textarea rows="3" formControlName="notes"></textarea>
-      </label>
-
-      <div class="form-actions">
-        <button type="submit" class="primary-button" [disabled]="!canManage()">Asignar</button>
-      </div>
-    </form>
-  </article>
-
-  <article class="panel">
-    <div class="panel-head">
-      <h2>Requerimientos vigentes</h2>
-      <span>{{ filteredCount() }} resultados</span>
-    </div>
-
-    <div class="table-tools">
-      <input
-        class="search-input"
-        type="search"
-        [value]="requirementQuery()"
-        (input)="setRequirementQuery.emit($any($event.target).value)"
-        placeholder="Buscar por empleado o implemento"
-      />
-    </div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Documento</th>
+          <th>Implemento</th>
+          <th>Solicitado</th>
+          <th>Notas</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (requirement of paginatedRequirements(); track requirement.id) {
           <tr>
-            <th>Empleado</th>
-            <th>Implemento</th>
-            <th>Periodicidad</th>
-            <th>Inicio</th>
-            <th>Acciones</th>
+            <td>{{ requirement.employeeName }}</td>
+            <td>{{ requirement.employeeDocument }}</td>
+            <td>{{ requirement.itemCode }} · {{ requirement.itemName }}</td>
+            <td>{{ requirement.requestedQuantity }}</td>
+            <td>{{ requirement.notes || 'N/A' }}</td>
+            <td class="row-actions">
+              <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="openEditModal(requirement)">
+                Editar
+              </button>
+              <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deleteRequirement.emit(requirement)">
+                Eliminar
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          @for (requirement of paginatedRequirements(); track requirement.id) {
-            <tr>
-              <td>{{ requirement.employeeName }}</td>
-              <td>{{ requirement.itemName }}</td>
-              <td>{{ requirement.periodicityMonths }} meses</td>
-              <td>{{ requirement.effectiveFrom }}</td>
-              <td>
-                <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deleteRequirement.emit(requirement)">
-                  Eliminar
-                </button>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="5" class="empty-row">No hay requerimientos configurados.</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+        } @empty {
+          <tr>
+            <td colspan="6" class="empty-row">No hay solicitudes registradas.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 
-    <div class="pagination-row">
-      <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
-      <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
-      <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
-    </div>
-  </article>
+  <div class="pagination-row">
+    <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+    <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+    <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+  </div>
 </section>
+
+@if (formModalOpen()) {
+  <div class="modal-backdrop" role="presentation" (click)="closeModal()">
+    <section class="panel modal-shell" role="dialog" aria-modal="true" aria-label="Formulario de solicitud" (click)="stopModalClose($event)">
+      <div class="modal-head">
+        <h2>{{ editingRequirementId() ? 'Editar solicitud' : 'Agregar solicitud' }}</h2>
+        <button type="button" class="ghost-button" (click)="closeModal()">Cerrar</button>
+      </div>
+
+      <form class="form-grid" [formGroup]="requirementForm()" (ngSubmit)="submitForm()">
+        <label class="field field-full">
+          <span>Empleado</span>
+          <select formControlName="employeeId">
+            <option value="">Selecciona un empleado</option>
+            @for (employee of employees(); track employee.id) {
+              <option [value]="employee.id">{{ employee.fullName }} · {{ employee.documentNumber }}</option>
+            }
+          </select>
+          @if (hasControlError('employeeId', 'required')) {
+            <small class="field-error">Debes seleccionar un empleado.</small>
+          }
+        </label>
+
+        <label class="field field-full">
+          <span>Implemento de dotacion</span>
+          <select formControlName="itemTypeId">
+            <option value="">Selecciona un implemento</option>
+            @for (item of dotacionItems(); track item.id) {
+              <option [value]="item.id">{{ item.code }} · {{ item.name }}</option>
+            }
+          </select>
+          @if (hasControlError('itemTypeId', 'required')) {
+            <small class="field-error">Debes seleccionar un implemento.</small>
+          }
+        </label>
+
+        <label class="field">
+          <span>Cantidad solicitada</span>
+          <input type="number" min="1" step="1" formControlName="requestedQuantity" />
+          @if (hasControlError('requestedQuantity', 'required')) {
+            <small class="field-error">La cantidad solicitada es obligatoria.</small>
+          }
+          @if (hasControlError('requestedQuantity', 'min')) {
+            <small class="field-error">La cantidad minima es 1.</small>
+          }
+        </label>
+
+        <label class="field field-full">
+          <span>Notas</span>
+          <textarea rows="3" formControlName="notes"></textarea>
+          @if (hasControlError('notes', 'maxlength')) {
+            <small class="field-error">Maximo 500 caracteres.</small>
+          }
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-button" [disabled]="!canManage()">
+            {{ editingRequirementId() ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button type="button" class="ghost-button" (click)="closeModal()">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
