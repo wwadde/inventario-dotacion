@@ -17,6 +17,7 @@ export interface Employee {
 export type ItemCategory = 'DOTACION' | 'REGALO';
 export type StockMovementType = 'INBOUND' | 'OUTBOUND' | 'ADJUSTMENT';
 export type DeliveryType = 'IMPLEMENTOS' | 'REGALOS';
+export type RequirementStatusFilter = 'OPEN' | 'CLOSED' | 'ALL';
 
 export interface ItemType {
   id: string;
@@ -41,6 +42,9 @@ export interface Requirement {
   itemName: string;
   requestedQuantity: number;
   notes: string | null;
+  closed: boolean;
+  closedAt: string | null;
+  closedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -11,16 +11,30 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface EmployeeRequirementRepository extends JpaRepository<EmployeeRequirement, UUID> {
 
     @EntityGraph(attributePaths = {"employee", "itemType"})
+    List<EmployeeRequirement> findAllByClosedFalseOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {"employee", "itemType"})
+    List<EmployeeRequirement> findAllByClosedTrueOrderByUpdatedAtDesc();
+
+    @EntityGraph(attributePaths = {"employee", "itemType"})
     List<EmployeeRequirement> findAllByOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {"employee", "itemType"})
+    List<EmployeeRequirement> findByEmployeeIdAndClosedFalseOrderByCreatedAtDesc(UUID employeeId);
+
+    @EntityGraph(attributePaths = {"employee", "itemType"})
+    List<EmployeeRequirement> findByEmployeeIdAndClosedTrueOrderByUpdatedAtDesc(UUID employeeId);
 
     @EntityGraph(attributePaths = {"employee", "itemType"})
     List<EmployeeRequirement> findByEmployeeIdOrderByCreatedAtDesc(UUID employeeId);
 
     @EntityGraph(attributePaths = {"employee", "itemType"})
-    List<EmployeeRequirement> findByEmployeeIdIn(Collection<UUID> employeeIds);
+    List<EmployeeRequirement> findByEmployeeIdInAndClosedFalse(Collection<UUID> employeeIds);
 
     @EntityGraph(attributePaths = {"employee", "itemType"})
-    Optional<EmployeeRequirement> findByEmployeeIdAndItemTypeId(UUID employeeId, UUID itemTypeId);
+    Optional<EmployeeRequirement> findByEmployeeIdAndItemTypeIdAndClosedFalse(UUID employeeId, UUID itemTypeId);
 
-    boolean existsByEmployeeIdAndItemTypeId(UUID employeeId, UUID itemTypeId);
+    Optional<EmployeeRequirement> findByIdAndClosedFalse(UUID requirementId);
+
+    boolean existsByEmployeeIdAndItemTypeIdAndClosedFalse(UUID employeeId, UUID itemTypeId);
 }

@@ -29,17 +29,29 @@ public class RequirementService {
     private final DataPrivacyService dataPrivacyService;
 
     @Transactional(readOnly = true)
-    public List<RequirementResponse> listRequirements(UUID employeeId, boolean includeSensitiveData) {
-        List<EmployeeRequirement> requirements = employeeId == null
+    public List<RequirementResponse> listRequirements(UUID employeeId,
+                                                      RequirementStatusFilter status,
+                                                      boolean includeSensitiveData) {
+        RequirementStatusFilter effectiveStatus = status == null ? RequirementStatusFilter.OPEN : status;
+
+        List<EmployeeRequirement> requirements = switch (effectiveStatus) {
+            case OPEN -> employeeId == null
+                ? requirementRepository.findAllByClosedFalseOrderByCreatedAtDesc()
+                : requirementRepository.findByEmployeeIdAndClosedFalseOrderByCreatedAtDesc(employeeId);
+            case CLOSED -> employeeId == null
+                ? requirementRepository.findAllByClosedTrueOrderByUpdatedAtDesc()
+                : requirementRepository.findByEmployeeIdAndClosedTrueOrderByUpdatedAtDesc(employeeId);
+            case ALL -> employeeId == null
                 ? requirementRepository.findAllByOrderByCreatedAtDesc()
                 : requirementRepository.findByEmployeeIdOrderByCreatedAtDesc(employeeId);
+        };
 
         return requirements.stream().map(requirement -> toResponse(requirement, includeSensitiveData)).toList();
     }
 
     @Transactional
     public RequirementResponse createRequirement(RequirementUpsertRequest request) {
-        if (requirementRepository.existsByEmployeeIdAndItemTypeId(request.employeeId(), request.itemTypeId())) {
+        if (requirementRepository.existsByEmployeeIdAndItemTypeIdAndClosedFalse(request.employeeId(), request.itemTypeId())) {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Ya existe una solicitud para este empleado e implemento.");
         }
@@ -56,6 +68,9 @@ public class RequirementService {
         EmployeeRequirement requirement = new EmployeeRequirement();
         requirement.setEmployee(employee);
         requirement.setItemType(itemType);
+        requirement.setClosed(false);
+        requirement.setClosedAt(null);
+        requirement.setClosedBy(null);
         apply(requirement, request);
 
         return toResponse(requirementRepository.save(requirement), true);
@@ -72,7 +87,7 @@ public class RequirementService {
                 || !previousItemTypeId.equals(request.itemTypeId());
 
         if (changedEmployeeOrItem
-                && requirementRepository.existsByEmployeeIdAndItemTypeId(request.employeeId(), request.itemTypeId())) {
+            && requirementRepository.existsByEmployeeIdAndItemTypeIdAndClosedFalse(request.employeeId(), request.itemTypeId())) {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "Ya existe una solicitud para este empleado e implemento.");
         }
@@ -100,7 +115,7 @@ public class RequirementService {
     }
 
     private EmployeeRequirement findById(UUID requirementId) {
-        return requirementRepository.findById(requirementId)
+        return requirementRepository.findByIdAndClosedFalse(requirementId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la solicitud solicitada."));
     }
 
@@ -138,6 +153,9 @@ public class RequirementService {
                 requirement.getItemType().getName(),
                 requirement.getRequestedQuantity(),
                 requirement.getNotes(),
+            requirement.isClosed(),
+            requirement.getClosedAt(),
+            requirement.getClosedBy(),
                 requirement.getCreatedAt(),
                 requirement.getUpdatedAt()
         );

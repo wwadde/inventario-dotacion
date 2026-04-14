@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Employee, ItemType, Requirement } from '../../core/dotacion.models';
+import { Employee, ItemType, Requirement, RequirementStatusFilter } from '../../core/dotacion.models';
 
 @Component({
   selector: 'app-requirements-view',
@@ -16,6 +16,7 @@ export class RequirementsView {
   employees = input.required<Employee[]>();
   items = input.required<ItemType[]>();
   canManage = input(false);
+  statusFilter = input<RequirementStatusFilter>('OPEN');
 
   requirementQuery = input('');
   filteredCount = input(0);
@@ -24,6 +25,7 @@ export class RequirementsView {
   totalPages = input(1);
 
   setRequirementQuery = output<string>();
+  setStatusFilter = output<RequirementStatusFilter>();
   saveRequirement = output<void>();
   cancelEdition = output<void>();
   editRequirement = output<Requirement>();
@@ -62,8 +64,16 @@ export class RequirementsView {
   }
 
   protected openEditModal(requirement: Requirement): void {
+    if (requirement.closed) {
+      return;
+    }
+
     this.editRequirement.emit(requirement);
     this.formModalOpen.set(true);
+  }
+
+  protected canEditRequirement(requirement: Requirement): boolean {
+    return this.canManage() && !requirement.closed;
   }
 
   protected closeModal(): void {

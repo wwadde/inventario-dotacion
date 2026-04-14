@@ -22,6 +22,7 @@ import {
   ItemType,
   ItemTypePayload,
   Requirement,
+  RequirementStatusFilter,
   RequirementPayload,
   DeliveryType,
   StockMovement,
@@ -46,6 +47,7 @@ export class AppFacade {
 
   readonly employees = signal<Employee[]>([]);
   readonly items = signal<ItemType[]>([]);
+  readonly openRequirements = signal<Requirement[]>([]);
   readonly requirements = signal<Requirement[]>([]);
   readonly deliveries = signal<Delivery[]>([]);
   readonly complianceRows = signal<ComplianceRow[]>([]);
@@ -61,6 +63,7 @@ export class AppFacade {
   readonly employeeQuery = signal('');
   readonly itemQuery = signal('');
   readonly requirementQuery = signal('');
+  readonly requirementStatusFilter = signal<RequirementStatusFilter>('OPEN');
   readonly deliveryQuery = signal('');
   readonly reportQuery = signal('');
 
@@ -268,7 +271,7 @@ export class AppFacade {
 
     return requirements.filter((requirement) => {
       const searchable = this.normalizeText(
-        `${requirement.employeeName} ${requirement.employeeDocument} ${requirement.itemCode} ${requirement.itemName} ${requirement.requestedQuantity} ${requirement.notes ?? ''}`,
+        `${requirement.employeeName} ${requirement.employeeDocument} ${requirement.itemCode} ${requirement.itemName} ${requirement.requestedQuantity} ${requirement.notes ?? ''} ${requirement.closedBy ?? ''} ${requirement.closedAt ?? ''}`,
       );
       return searchable.includes(query);
     });
@@ -372,6 +375,12 @@ export class AppFacade {
     this.requirementPage.set(1);
   }
 
+  setRequirementStatusFilter(status: RequirementStatusFilter): void {
+    this.requirementStatusFilter.set(status);
+    this.requirementPage.set(1);
+    void this.reloadRequirementsList();
+  }
+
   setDeliveryQuery(value: string): void {
     this.deliveryQuery.set(value);
     this.deliveryPage.set(1);
@@ -463,11 +472,12 @@ export class AppFacade {
     this.errorMessage.set(null);
 
     try {
-      const [dashboard, employees, items, requirements, deliveries, complianceRows] = await Promise.all([
+      const [dashboard, employees, items, openRequirements, requirements, deliveries, complianceRows] = await Promise.all([
         firstValueFrom(this.api.getDashboardSummary()),
         firstValueFrom(this.api.listEmployees(true)),
         firstValueFrom(this.api.listItems(true)),
-        firstValueFrom(this.api.listRequirements()),
+        firstValueFrom(this.api.listRequirements(undefined, 'OPEN')),
+        firstValueFrom(this.api.listRequirements(undefined, this.requirementStatusFilter())),
         firstValueFrom(this.api.listDeliveries()),
         firstValueFrom(this.api.getCompliance('ALL')),
       ]);
@@ -477,6 +487,7 @@ export class AppFacade {
       this.dashboard.set(dashboard);
       this.employees.set(employees);
       this.items.set(items);
+      this.openRequirements.set(openRequirements);
       this.requirements.set(requirements);
       this.deliveries.set(deliveries);
       this.complianceRows.set(complianceRows);
@@ -723,6 +734,11 @@ export class AppFacade {
   }
 
   editRequirement(requirement: Requirement): void {
+    if (requirement.closed) {
+      this.errorMessage.set('No se puede editar una solicitud cerrada.');
+      return;
+    }
+
     this.editingRequirementId.set(requirement.id);
     this.requirementForm.setValue({
       employeeId: requirement.employeeId,
@@ -738,6 +754,11 @@ export class AppFacade {
 
   async deleteRequirement(requirement: Requirement): Promise<void> {
     if (!this.ensureAdminSession()) {
+      return;
+    }
+
+    if (requirement.closed) {
+      this.errorMessage.set('No se puede eliminar una solicitud cerrada.');
       return;
     }
 
@@ -800,6 +821,12 @@ export class AppFacade {
         }))
         .filter((item) => item.itemTypeId.length > 0),
     };
+
+    if (!payload.signatureDataUrl) {
+      this.errorMessage.set('Debes registrar una evidencia de recibido: firma digital o foto con camara.');
+      this.deliverySubmitState.set('error');
+      return;
+    }
 
     if (payload.items.length === 0) {
       this.errorMessage.set('Debe registrar al menos un implemento para la entrega.');
@@ -1004,15 +1031,17 @@ export class AppFacade {
   }
 
   private async refreshEmployeesRelatedData(): Promise<void> {
-    const [employees, requirements, deliveries, complianceRows, dashboard] = await Promise.all([
+    const [employees, openRequirements, requirements, deliveries, complianceRows, dashboard] = await Promise.all([
       firstValueFrom(this.api.listEmployees(true)),
-      firstValueFrom(this.api.listRequirements()),
+      firstValueFrom(this.api.listRequirements(undefined, 'OPEN')),
+      firstValueFrom(this.api.listRequirements(undefined, this.requirementStatusFilter())),
       firstValueFrom(this.api.listDeliveries()),
       firstValueFrom(this.api.getCompliance('ALL')),
       firstValueFrom(this.api.getDashboardSummary()),
     ]);
 
     this.employees.set(employees);
+    this.openRequirements.set(openRequirements);
     this.requirements.set(requirements);
     this.deliveries.set(deliveries);
     this.complianceRows.set(complianceRows);
@@ -1020,15 +1049,17 @@ export class AppFacade {
   }
 
   private async refreshItemsRelatedData(): Promise<void> {
-    const [items, requirements, deliveries, complianceRows, stockMovements] = await Promise.all([
+    const [items, openRequirements, requirements, deliveries, complianceRows, stockMovements] = await Promise.all([
       firstValueFrom(this.api.listItems(true)),
-      firstValueFrom(this.api.listRequirements()),
+      firstValueFrom(this.api.listRequirements(undefined, 'OPEN')),
+      firstValueFrom(this.api.listRequirements(undefined, this.requirementStatusFilter())),
       firstValueFrom(this.api.listDeliveries()),
       firstValueFrom(this.api.getCompliance('ALL')),
       firstValueFrom(this.api.listStockMovements(this.selectedStockItemId() ?? undefined)),
     ]);
 
     this.items.set(items);
+    this.openRequirements.set(openRequirements);
     this.requirements.set(requirements);
     this.deliveries.set(deliveries);
     this.complianceRows.set(complianceRows);
@@ -1036,13 +1067,15 @@ export class AppFacade {
   }
 
   private async refreshRequirementsRelatedData(): Promise<void> {
-    const [requirements, deliveries, complianceRows, dashboard] = await Promise.all([
-      firstValueFrom(this.api.listRequirements()),
+    const [openRequirements, requirements, deliveries, complianceRows, dashboard] = await Promise.all([
+      firstValueFrom(this.api.listRequirements(undefined, 'OPEN')),
+      firstValueFrom(this.api.listRequirements(undefined, this.requirementStatusFilter())),
       firstValueFrom(this.api.listDeliveries()),
       firstValueFrom(this.api.getCompliance('ALL')),
       firstValueFrom(this.api.getDashboardSummary()),
     ]);
 
+    this.openRequirements.set(openRequirements);
     this.requirements.set(requirements);
     this.deliveries.set(deliveries);
     this.complianceRows.set(complianceRows);
@@ -1154,9 +1187,10 @@ export class AppFacade {
   }
 
   private async refreshDeliveriesRelatedData(): Promise<void> {
-    const [items, requirements, deliveries, complianceRows, dashboard, stockMovements] = await Promise.all([
+    const [items, openRequirements, requirements, deliveries, complianceRows, dashboard, stockMovements] = await Promise.all([
       firstValueFrom(this.api.listItems(true)),
-      firstValueFrom(this.api.listRequirements()),
+      firstValueFrom(this.api.listRequirements(undefined, 'OPEN')),
+      firstValueFrom(this.api.listRequirements(undefined, this.requirementStatusFilter())),
       firstValueFrom(this.api.listDeliveries()),
       firstValueFrom(this.api.getCompliance('ALL')),
       firstValueFrom(this.api.getDashboardSummary()),
@@ -1164,11 +1198,23 @@ export class AppFacade {
     ]);
 
     this.items.set(items);
+    this.openRequirements.set(openRequirements);
     this.requirements.set(requirements);
     this.deliveries.set(deliveries);
     this.complianceRows.set(complianceRows);
     this.dashboard.set(dashboard);
     this.stockMovements.set(stockMovements);
+  }
+
+  private async reloadRequirementsList(): Promise<void> {
+    try {
+      const requirements = await firstValueFrom(
+        this.api.listRequirements(undefined, this.requirementStatusFilter()),
+      );
+      this.requirements.set(requirements);
+    } catch (error: unknown) {
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible actualizar el listado de solicitudes.'));
+    }
   }
 
   private downloadFile(blob: Blob, filename: string): void {

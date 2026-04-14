@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: dotacion-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: dotacion
       POSTGRES_USER: dotacion
@@ -16,6 +17,7 @@ services:
 
   backend:
     container_name: dotacion-backend
+    restart: unless-stopped
     build:
       context: ./back
     environment:
@@ -27,11 +29,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
 
   frontend:
     container_name: dotacion-frontend
+    restart: unless-stopped
     build:
       context: ./front
     environment:

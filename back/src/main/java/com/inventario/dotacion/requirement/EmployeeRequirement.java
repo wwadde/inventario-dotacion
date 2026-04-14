@@ -16,7 +16,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -25,9 +24,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "employee_requirements", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_employee_item", columnNames = {"employee_id", "item_type_id"})
-})
+@Table(name = "employee_requirements")
 public class EmployeeRequirement {
 
     @Id
@@ -47,6 +44,15 @@ public class EmployeeRequirement {
 
     @Column(length = 500)
     private String notes;
+
+    @Column(nullable = false)
+    private boolean closed;
+
+    @Column(name = "closed_at")
+    private OffsetDateTime closedAt;
+
+    @Column(name = "closed_by", length = 120)
+    private String closedBy;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

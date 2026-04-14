@@ -29,8 +29,11 @@ public class RequirementController {
     private final AccessControlService accessControlService;
 
     @GetMapping
-    public List<RequirementResponse> listRequirements(@RequestParam(required = false) UUID employeeId) {
-        return requirementService.listRequirements(employeeId, accessControlService.canViewSensitiveData());
+    public List<RequirementResponse> listRequirements(
+            @RequestParam(required = false) UUID employeeId,
+            @RequestParam(defaultValue = "OPEN") RequirementStatusFilter status
+    ) {
+        return requirementService.listRequirements(employeeId, status, accessControlService.canViewSensitiveData());
     }
 
     @PostMapping

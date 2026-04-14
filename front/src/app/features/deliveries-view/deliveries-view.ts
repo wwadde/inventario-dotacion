@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Delivery, DeliveryType, Employee, ItemType, Requirement } from '../../core/dotacion.models';
 import { SignaturePad } from '../../shared/signature-pad/signature-pad';
+import { CameraCapture } from '../../shared/camera-capture/camera-capture';
 
 @Component({
   selector: 'app-deliveries-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, SignaturePad],
+  imports: [CommonModule, ReactiveFormsModule, SignaturePad, CameraCapture],
   templateUrl: './deliveries-view.html',
 })
 export class DeliveriesView {
@@ -38,6 +39,7 @@ export class DeliveriesView {
 
   protected readonly formModalOpen = signal(false);
   protected readonly submitInProgress = signal(false);
+  protected readonly evidenceMode = signal<'signature' | 'photo'>('signature');
 
   constructor() {
     effect(() => {
@@ -59,12 +61,16 @@ export class DeliveriesView {
 
   protected openCreateModal(): void {
     this.formModalOpen.set(true);
+    this.evidenceMode.set('signature');
+    this.signatureChange.emit(null);
     this.resetItemsForCurrentMode();
   }
 
   protected closeModal(): void {
     this.submitInProgress.set(false);
     this.formModalOpen.set(false);
+    this.evidenceMode.set('signature');
+    this.signatureChange.emit(null);
   }
 
   protected submitDelivery(): void {
@@ -175,36 +181,61 @@ export class DeliveriesView {
     return this.validationErrors()[`items[${index}].${controlName}`] ?? [];
   }
 
+  protected setEvidenceMode(mode: 'signature' | 'photo'): void {
+    if (this.evidenceMode() === mode) {
+      return;
+    }
+
+    this.evidenceMode.set(mode);
+    this.signatureChange.emit(null);
+  }
+
+  protected onSignatureChanged(dataUrl: string | null): void {
+    if (this.evidenceMode() !== 'signature') {
+      return;
+    }
+
+    this.signatureChange.emit(dataUrl);
+  }
+
+  protected onPhotoChanged(dataUrl: string | null): void {
+    if (this.evidenceMode() !== 'photo') {
+      return;
+    }
+
+    this.signatureChange.emit(dataUrl);
+  }
+
   private pendingDotacionQuantityByItemForEmployee(employeeId: string): Map<string, number> {
-    const requestedByItem = new Map<string, number>();
+    const pendingByItem = new Map<string, number>();
+    const employeeImplementosDeliveries = this.allDeliveries().filter(
+      (delivery) => delivery.employeeId === employeeId && delivery.deliveryType === 'IMPLEMENTOS',
+    );
+
     for (const requirement of this.requirements()) {
       if (requirement.employeeId !== employeeId) {
         continue;
       }
 
-      requestedByItem.set(
-        requirement.itemTypeId,
-        (requestedByItem.get(requirement.itemTypeId) ?? 0) + requirement.requestedQuantity,
-      );
-    }
+      const requirementStartTime = new Date(requirement.createdAt).getTime();
+      let deliveredForRequirement = 0;
 
-    const deliveredByItem = new Map<string, number>();
-    for (const delivery of this.allDeliveries()) {
-      if (delivery.employeeId !== employeeId || delivery.deliveryType !== 'IMPLEMENTOS') {
-        continue;
+      for (const delivery of employeeImplementosDeliveries) {
+        const deliveryCreatedAt = new Date(delivery.createdAt).getTime();
+        if (deliveryCreatedAt < requirementStartTime) {
+          continue;
+        }
+
+        for (const item of delivery.items) {
+          if (item.itemTypeId === requirement.itemTypeId) {
+            deliveredForRequirement += item.quantity;
+          }
+        }
       }
 
-      for (const item of delivery.items) {
-        deliveredByItem.set(item.itemTypeId, (deliveredByItem.get(item.itemTypeId) ?? 0) + item.quantity);
-      }
-    }
-
-    const pendingByItem = new Map<string, number>();
-    for (const [itemTypeId, requestedQuantity] of requestedByItem.entries()) {
-      const deliveredQuantity = deliveredByItem.get(itemTypeId) ?? 0;
-      const pendingQuantity = Math.max(0, requestedQuantity - deliveredQuantity);
+      const pendingQuantity = Math.max(0, requirement.requestedQuantity - deliveredForRequirement);
       if (pendingQuantity > 0) {
-        pendingByItem.set(itemTypeId, pendingQuantity);
+        pendingByItem.set(requirement.itemTypeId, pendingQuantity);
       }
     }
 

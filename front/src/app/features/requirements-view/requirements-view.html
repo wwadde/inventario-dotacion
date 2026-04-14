@@ -9,6 +9,33 @@
       Agregar solicitud
     </button>
 
+    <div class="filter-row" aria-label="Filtro de estado solicitudes">
+      <button
+        type="button"
+        class="filter-button"
+        [class.filter-button-active]="statusFilter() === 'OPEN'"
+        (click)="setStatusFilter.emit('OPEN')"
+      >
+        Abiertas
+      </button>
+      <button
+        type="button"
+        class="filter-button"
+        [class.filter-button-active]="statusFilter() === 'CLOSED'"
+        (click)="setStatusFilter.emit('CLOSED')"
+      >
+        Cerradas
+      </button>
+      <button
+        type="button"
+        class="filter-button"
+        [class.filter-button-active]="statusFilter() === 'ALL'"
+        (click)="setStatusFilter.emit('ALL')"
+      >
+        Todas
+      </button>
+    </div>
+
     <input
       class="search-input"
       type="search"
@@ -27,6 +54,8 @@
           <th>Implemento</th>
           <th>Solicitado</th>
           <th>Notas</th>
+          <th>Estado</th>
+          <th>Cierre</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -38,18 +67,34 @@
             <td>{{ requirement.itemCode }} · {{ requirement.itemName }}</td>
             <td>{{ requirement.requestedQuantity }}</td>
             <td>{{ requirement.notes || 'N/A' }}</td>
+            <td>
+              <span
+                class="status-badge"
+                [class.status-badge-pending]="!requirement.closed"
+                [class.status-badge-ok]="requirement.closed"
+              >
+                {{ requirement.closed ? 'Cerrada' : 'Abierta' }}
+              </span>
+            </td>
+            <td>
+              @if (requirement.closed) {
+                {{ (requirement.closedAt || '') | date:'yyyy-MM-dd HH:mm' }} · {{ requirement.closedBy || 'sistema' }}
+              } @else {
+                N/A
+              }
+            </td>
             <td class="row-actions">
-              <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="openEditModal(requirement)">
+              <button type="button" class="ghost-button" [disabled]="!canEditRequirement(requirement)" (click)="openEditModal(requirement)">
                 Editar
               </button>
-              <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deleteRequirement.emit(requirement)">
+              <button type="button" class="danger-button" [disabled]="!canEditRequirement(requirement)" (click)="deleteRequirement.emit(requirement)">
                 Eliminar
               </button>
             </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" class="empty-row">No hay solicitudes registradas.</td>
+            <td colspan="8" class="empty-row">No hay solicitudes registradas.</td>
           </tr>
         }
       </tbody>

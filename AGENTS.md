@@ -28,3 +28,10 @@ Aplicacion para gestionar dotaciones empresariales con:
 2. En la VPS (Dokploy), crear servicios para postgres, backend y frontend.
 3. Configurar BACKEND_URL del frontend y variables DB del backend.
 4. Exponer solo frontend en HTTP/HTTPS y dejar backend interno.
+
+
+
+http://16.59.207.174:3000/
+
+Variable de entorno en el front:
+BACKEND_URL=http://dotaciones-back-xrf0wu:8080

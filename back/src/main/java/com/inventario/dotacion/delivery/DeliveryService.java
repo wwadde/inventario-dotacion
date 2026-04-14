@@ -1,6 +1,7 @@
 package com.inventario.dotacion.delivery;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HashSet;
@@ -120,13 +121,17 @@ public class DeliveryService {
 
                 if (deliveryType == DeliveryType.IMPLEMENTOS) {
                 EmployeeRequirement requirement = requirementRepository
-                    .findByEmployeeIdAndItemTypeId(employee.getId(), itemTypeId)
+                    .findByEmployeeIdAndItemTypeIdAndClosedFalse(employee.getId(), itemTypeId)
                     .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
                         "No existe una solicitud activa para el implemento " + itemTypeForStock.getCode()
                             + " en este empleado."));
 
                 long deliveredQuantity = deliveryItemRepository
-                    .sumDeliveredQuantityForImplementos(employee.getId(), itemTypeId);
+                    .sumDeliveredQuantityForImplementosSinceTimestamp(
+                            employee.getId(),
+                            itemTypeId,
+                        requirement.getCreatedAt()
+                    );
                 long pendingQuantity = Math.max(0L, (long) requirement.getRequestedQuantity() - deliveredQuantity);
 
                 if (pendingQuantity <= 0 && !duplicateAcknowledged) {
@@ -191,7 +196,39 @@ public class DeliveryService {
             );
         }
 
+        if (deliveryType == DeliveryType.IMPLEMENTOS) {
+            closeFulfilledRequirements(employee.getId(), requestedQuantityByItemType.keySet(), performedBy);
+        }
+
         return toResponse(savedDelivery, true);
+    }
+
+    private void closeFulfilledRequirements(UUID employeeId, Set<UUID> deliveredItemTypeIds, String performedBy) {
+        for (UUID itemTypeId : deliveredItemTypeIds) {
+            EmployeeRequirement requirement = requirementRepository
+                    .findByEmployeeIdAndItemTypeIdAndClosedFalse(employeeId, itemTypeId)
+                    .orElse(null);
+
+            if (requirement == null) {
+                continue;
+            }
+
+            long deliveredQuantity = deliveryItemRepository
+                    .sumDeliveredQuantityForImplementosSinceTimestamp(
+                        employeeId,
+                        itemTypeId,
+                        requirement.getCreatedAt()
+                    );
+
+            if (deliveredQuantity < requirement.getRequestedQuantity()) {
+                continue;
+            }
+
+            requirement.setClosed(true);
+            requirement.setClosedAt(OffsetDateTime.now());
+            requirement.setClosedBy(performedBy);
+            requirementRepository.save(requirement);
+        }
     }
 
     @Transactional(readOnly = true)

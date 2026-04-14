@@ -10,7 +10,6 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,7 +18,6 @@ import java.util.stream.Collectors;
 import com.inventario.dotacion.common.security.DataPrivacyService;
 import com.inventario.dotacion.delivery.DeliveryItemRepository;
 import com.inventario.dotacion.delivery.DeliveryRepository;
-import com.inventario.dotacion.delivery.EmployeeItemDeliveredSummary;
 import com.inventario.dotacion.employee.Employee;
 import com.inventario.dotacion.employee.EmployeeRepository;
 import com.inventario.dotacion.requirement.EmployeeRequirement;
@@ -47,7 +45,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ComplianceService {
 
     private static final DateTimeFormatter EXCEL_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String EMPLOYEE_ITEM_KEY_SEPARATOR = "::";
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeRequirementRepository requirementRepository;
@@ -63,12 +60,10 @@ public class ComplianceService {
         }
 
         List<UUID> employeeIds = employees.stream().map(Employee::getId).toList();
-        List<EmployeeRequirement> requirements = requirementRepository.findByEmployeeIdIn(employeeIds);
+        List<EmployeeRequirement> requirements = requirementRepository.findByEmployeeIdInAndClosedFalse(employeeIds);
 
         Map<UUID, List<EmployeeRequirement>> requirementsByEmployee = requirements.stream()
             .collect(Collectors.groupingBy(requirement -> requirement.getEmployee().getId()));
-
-        Map<String, Long> deliveredByEmployeeAndItem = buildDeliveredQuantityMap(employeeIds);
 
         List<ComplianceRowResponse> rows = new ArrayList<>();
 
@@ -85,8 +80,11 @@ public class ComplianceService {
             List<String> pendingItems = new ArrayList<>();
 
             for (EmployeeRequirement requirement : employeeRequirements) {
-            String key = buildEmployeeItemKey(employee.getId(), requirement.getItemType().getId());
-            long deliveredQuantity = deliveredByEmployeeAndItem.getOrDefault(key, 0L);
+                long deliveredQuantity = deliveryItemRepository.sumDeliveredQuantityForImplementosSinceTimestamp(
+                    employee.getId(),
+                    requirement.getItemType().getId(),
+                    requirement.getCreatedAt()
+                );
             int requestedQuantity = requirement.getRequestedQuantity();
             int coveredQuantity = (int) Math.min(requestedQuantity, deliveredQuantity);
             int pendingQuantity = Math.max(0, requestedQuantity - coveredQuantity);
@@ -174,29 +172,6 @@ public class ComplianceService {
                 pendingEstimatedCost.setScale(2, RoundingMode.HALF_UP),
                 birthdaysToday
         );
-    }
-
-    private Map<String, Long> buildDeliveredQuantityMap(List<UUID> employeeIds) {
-        if (employeeIds.isEmpty()) {
-            return Map.of();
-        }
-
-        List<EmployeeItemDeliveredSummary> deliveredSummaries =
-                deliveryItemRepository.sumDeliveredQuantitiesByEmployeesForImplementos(employeeIds);
-
-        Map<String, Long> deliveredByEmployeeAndItem = new HashMap<>();
-        for (EmployeeItemDeliveredSummary summary : deliveredSummaries) {
-            deliveredByEmployeeAndItem.put(
-                    buildEmployeeItemKey(summary.employeeId(), summary.itemTypeId()),
-                    summary.deliveredQuantity()
-            );
-        }
-
-        return deliveredByEmployeeAndItem;
-    }
-
-    private String buildEmployeeItemKey(UUID employeeId, UUID itemTypeId) {
-        return employeeId + EMPLOYEE_ITEM_KEY_SEPARATOR + itemTypeId;
     }
 
     @Transactional(readOnly = true)

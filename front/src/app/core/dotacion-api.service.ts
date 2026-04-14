@@ -12,6 +12,7 @@ import {
   ItemType,
   ItemTypePayload,
   Requirement,
+  RequirementStatusFilter,
   RequirementPayload,
   ItemStockInboundPayload,
   StockMovement,
@@ -95,8 +96,11 @@ export class DotacionApiService {
     return this.http.delete<void>(`${this.baseUrl}/items/${itemId}`, this.withAuth());
   }
 
-  listRequirements(employeeId?: string) {
-    const params = employeeId ? new HttpParams().set('employeeId', employeeId) : undefined;
+  listRequirements(employeeId?: string, status: RequirementStatusFilter = 'OPEN') {
+    let params = new HttpParams().set('status', status);
+    if (employeeId) {
+      params = params.set('employeeId', employeeId);
+    }
     return this.http.get<Requirement[]>(`${this.baseUrl}/requirements`, this.withAuth(params));
   }
 

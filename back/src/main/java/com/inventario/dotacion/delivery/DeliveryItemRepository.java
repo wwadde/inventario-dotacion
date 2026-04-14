@@ -2,6 +2,7 @@ package com.inventario.dotacion.delivery;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -61,6 +62,21 @@ public interface DeliveryItemRepository extends JpaRepository<DeliveryItem, UUID
     long sumDeliveredQuantityForImplementos(
             @Param("employeeId") UUID employeeId,
             @Param("itemTypeId") UUID itemTypeId
+    );
+
+    @Query("""
+            select coalesce(sum(di.quantity), 0)
+            from DeliveryItem di
+            join di.delivery d
+            where d.employee.id = :employeeId
+              and di.itemType.id = :itemTypeId
+              and d.deliveryType = com.inventario.dotacion.delivery.DeliveryType.IMPLEMENTOS
+              and d.createdAt >= :sinceTimestamp
+            """)
+    long sumDeliveredQuantityForImplementosSinceTimestamp(
+            @Param("employeeId") UUID employeeId,
+            @Param("itemTypeId") UUID itemTypeId,
+            @Param("sinceTimestamp") OffsetDateTime sinceTimestamp
     );
 
     @Query("""

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ViewEncapsulation, inject } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
-import { ComplianceStatus, Delivery, Employee, ItemType, Requirement } from './core/dotacion.models';
+import { ComplianceStatus, Delivery, Employee, ItemType, Requirement, RequirementStatusFilter } from './core/dotacion.models';
 import { AppFacade } from './app-facade.service';
 import { DashboardView } from './features/dashboard-view/dashboard-view';
 import { DeliveriesView } from './features/deliveries-view/deliveries-view';
@@ -84,7 +84,8 @@ export class App {
   protected readonly itemTotalPages = this.facade.itemTotalPages;
   protected readonly employees = this.facade.employees;
   protected readonly items = this.facade.items;
-  protected readonly requirements = this.facade.requirements;
+  protected readonly requirements = this.facade.openRequirements;
+  protected readonly requirementStatusFilter = this.facade.requirementStatusFilter;
 
   protected readonly requirementForm = this.facade.requirementForm;
   protected readonly editingRequirementId = this.facade.editingRequirementId;
@@ -135,6 +136,10 @@ export class App {
 
   protected setRequirementQuery(value: string): void {
     this.facade.setRequirementQuery(value);
+  }
+
+  protected setRequirementStatusFilter(value: RequirementStatusFilter): void {
+    this.facade.setRequirementStatusFilter(value);
   }
 
   protected setDeliveryQuery(value: string): void {

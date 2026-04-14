@@ -57,7 +57,7 @@
   <div class="modal-backdrop" role="presentation" (click)="closeModal()">
     <section class="panel modal-shell modal-shell-wide" role="dialog" aria-modal="true" aria-label="Formulario de entrega" (click)="stopModalClose($event)">
       <div class="modal-head">
-        <h2>Registrar entrega con firma</h2>
+        <h2>Registrar entrega con evidencia</h2>
         <button type="button" class="ghost-button" (click)="closeModal()">Cerrar</button>
       </div>
 
@@ -193,8 +193,35 @@
         </label>
 
         <div class="field field-full">
-          <span class="field-label">Firma digital</span>
-          <app-signature-pad (signatureChange)="signatureChange.emit($event)"></app-signature-pad>
+          <span class="field-label">Evidencia de recibido</span>
+          <div class="filter-row" aria-label="Modo de evidencia">
+            <button
+              type="button"
+              class="filter-button"
+              [class.filter-button-active]="evidenceMode() === 'signature'"
+              [disabled]="!canManage()"
+              (click)="setEvidenceMode('signature')"
+            >
+              Firma digital
+            </button>
+            <button
+              type="button"
+              class="filter-button"
+              [class.filter-button-active]="evidenceMode() === 'photo'"
+              [disabled]="!canManage()"
+              (click)="setEvidenceMode('photo')"
+            >
+              Foto con camara
+            </button>
+          </div>
+
+          @if (evidenceMode() === 'signature') {
+            <p class="muted">Modo por defecto. Firma directamente en pantalla.</p>
+            <app-signature-pad (signatureChange)="onSignatureChanged($event)"></app-signature-pad>
+          } @else {
+            <p class="muted">Se solicitaran permisos de camara para capturar la evidencia de entrega.</p>
+            <app-camera-capture [disabled]="!canManage()" (photoChange)="onPhotoChanged($event)"></app-camera-capture>
+          }
         </div>
 
         <div class="form-actions">
