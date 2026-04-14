@@ -1,0 +1,90 @@
+<section class="panel">
+  <div class="panel-head">
+    <h2>Reporte de cumplimiento</h2>
+    <button type="button" class="primary-button" [disabled]="!canManage()" (click)="exportComplianceExcel.emit()">
+      Exportar Excel
+    </button>
+  </div>
+
+  <div class="filter-row">
+    <button
+      type="button"
+      class="filter-button"
+      [class.filter-button-active]="complianceFilter() === 'ALL'"
+      (click)="setComplianceFilter.emit('ALL')"
+    >
+      Todos
+    </button>
+    <button
+      type="button"
+      class="filter-button"
+      [class.filter-button-active]="complianceFilter() === 'PENDING'"
+      (click)="setComplianceFilter.emit('PENDING')"
+    >
+      Pendientes
+    </button>
+    <button
+      type="button"
+      class="filter-button"
+      [class.filter-button-active]="complianceFilter() === 'UP_TO_DATE'"
+      (click)="setComplianceFilter.emit('UP_TO_DATE')"
+    >
+      Al dia
+    </button>
+
+    <input
+      class="search-input report-search"
+      type="search"
+      [value]="reportQuery()"
+      (input)="setReportQuery.emit($any($event.target).value)"
+      placeholder="Buscar por empleado, documento o area"
+    />
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Documento</th>
+          <th>Area</th>
+          <th>Total</th>
+          <th>Pendientes</th>
+          <th>Proximo vencimiento</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of paginatedComplianceRows(); track row.employeeId) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.employeeDocument }}</td>
+            <td>{{ row.area || 'N/A' }}</td>
+            <td>{{ row.totalRequirements }}</td>
+            <td>{{ row.pendingRequirements }}</td>
+            <td>{{ row.nextDueDate || 'N/A' }}</td>
+            <td>
+              <span
+                class="status-badge"
+                [class.status-badge-pending]="row.status === 'PENDING'"
+                [class.status-badge-ok]="row.status === 'UP_TO_DATE'"
+              >
+                {{ labelForStatus()(row.status) }}
+              </span>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="empty-row">No hay datos para el filtro seleccionado.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination-row">
+    <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+    <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+    <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+  </div>
+</section>

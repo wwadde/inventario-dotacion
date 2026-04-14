@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dotacion-postgres
+    environment:
+      POSTGRES_DB: dotacion
+      POSTGRES_USER: dotacion
+      POSTGRES_PASSWORD: dotacion
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dotacion -d dotacion"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    container_name: dotacion-backend
+    build:
+      context: ./back
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/dotacion
+      DB_USERNAME: dotacion
+      DB_PASSWORD: dotacion
+      CORS_ALLOWED_ORIGINS: http://localhost
+      COMPANY_NAME: Inventario Dotacion S.A.S.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    container_name: dotacion-frontend
+    build:
+      context: ./front
+    environment:
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:

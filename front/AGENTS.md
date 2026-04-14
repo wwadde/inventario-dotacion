@@ -54,3 +54,12 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## Estado Del Proyecto Dotacion
+
+- Frontend implementado como aplicacion standalone en Angular 21.
+- Pantallas incluidas: resumen, empleados, implementos, requerimientos, entregas y reportes.
+- Firma digital implementada con canvas y soporte de puntero/touch.
+- Integracion activa con backend REST bajo la ruta `/api`.
+- Exportacion de certificados PDF y reporte Excel disponible desde UI.
+- Docker listo con Nginx y proxy configurable via variable `BACKEND_URL`.

@@ -1,0 +1,115 @@
+<section class="split">
+  <article class="panel form-panel">
+    <h2>{{ editingEmployeeId() ? 'Editar empleado' : 'Registrar empleado' }}</h2>
+
+    <form class="form-grid" [formGroup]="employeeForm()" (ngSubmit)="saveEmployee.emit()">
+      <label class="field">
+        <span>Documento</span>
+        <input type="text" formControlName="documentNumber" />
+      </label>
+
+      <label class="field">
+        <span>Nombre</span>
+        <input type="text" formControlName="firstName" />
+      </label>
+
+      <label class="field">
+        <span>Apellido</span>
+        <input type="text" formControlName="lastName" />
+      </label>
+
+      <label class="field">
+        <span>Correo</span>
+        <input type="email" formControlName="email" />
+      </label>
+
+      <label class="field">
+        <span>Telefono</span>
+        <input type="text" formControlName="phone" />
+      </label>
+
+      <label class="field">
+        <span>Area</span>
+        <input type="text" formControlName="area" />
+      </label>
+
+      <label class="field">
+        <span>Cargo</span>
+        <input type="text" formControlName="position" />
+      </label>
+
+      <label class="toggle-field">
+        <input type="checkbox" formControlName="active" />
+        <span>Empleado activo</span>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-button" [disabled]="!canManage()">
+          {{ editingEmployeeId() ? 'Actualizar' : 'Guardar' }}
+        </button>
+        @if (editingEmployeeId()) {
+          <button type="button" class="ghost-button" (click)="cancelEdition.emit()">Cancelar</button>
+        }
+      </div>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Empleados activos</h2>
+      <span>{{ filteredCount() }} resultados</span>
+    </div>
+
+    <div class="table-tools">
+      <input
+        class="search-input"
+        type="search"
+        [value]="employeeQuery()"
+        (input)="setEmployeeQuery.emit($any($event.target).value)"
+        placeholder="Buscar por nombre, documento, area o cargo"
+      />
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Documento</th>
+            <th>Nombre</th>
+            <th>Area</th>
+            <th>Cargo</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (employee of paginatedEmployees(); track employee.id) {
+            <tr>
+              <td>{{ employee.documentNumber }}</td>
+              <td>{{ employee.fullName }}</td>
+              <td>{{ employee.area || 'N/A' }}</td>
+              <td>{{ employee.position || 'N/A' }}</td>
+              <td class="row-actions">
+                <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="editEmployee.emit(employee)">
+                  Editar
+                </button>
+                <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deactivateEmployee.emit(employee)">
+                  Desactivar
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-row">No hay empleados registrados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination-row">
+      <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+      <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+      <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+    </div>
+  </article>
+</section>

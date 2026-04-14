@@ -1,3 +1,298 @@
-/* You can add global styles to this file, and also import other style files */
-
 @import "tailwindcss";
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+}
+
+body {
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+	color: #18232d;
+}
+
+@layer components {
+	.panel {
+		@apply rounded-[18px] border bg-white shadow-[0_12px_32px_rgba(26,31,42,0.08)];
+		border-color: var(--panel-border);
+		padding: 1rem;
+	}
+
+	.tab-button {
+		@apply cursor-pointer rounded-full bg-transparent px-4 py-2 text-[0.95rem] transition;
+		color: #2f3d4a;
+	}
+
+	.tab-button:hover {
+		@apply -translate-y-px;
+		background: rgba(255, 255, 255, 0.75);
+	}
+
+	.tab-button-active {
+		@apply text-white shadow-[0_10px_22px_rgba(138,90,56,0.28)];
+		background: var(--accent);
+	}
+
+	.tab-button-active:hover {
+		background: var(--accent);
+		transform: none;
+	}
+
+	.banner {
+		@apply rounded-[13px] px-4 py-3 text-[0.93rem];
+	}
+
+	.banner-error {
+		background: rgba(158, 50, 47, 0.16);
+		color: #6e1f1d;
+		border: 1px solid rgba(158, 50, 47, 0.32);
+	}
+
+	.banner-success {
+		background: rgba(31, 111, 95, 0.18);
+		color: #165244;
+		border: 1px solid rgba(31, 111, 95, 0.3);
+	}
+
+	.field,
+	.toggle-field {
+		@apply grid gap-1.5;
+	}
+
+	.toggle-field {
+		@apply items-center;
+		grid-template-columns: auto 1fr;
+		column-gap: 0.5rem;
+	}
+
+	.toggle-field input[type='checkbox'] {
+		@apply h-4 w-4;
+	}
+
+	.field-full {
+		grid-column: 1 / -1;
+	}
+
+	.field > span,
+	.field-label,
+	.toggle-field > span,
+	.panel-head span,
+	.metric-label,
+	.empty,
+	.empty-row,
+	.muted {
+		color: var(--muted);
+	}
+
+	input,
+	textarea,
+	select,
+	.search-input {
+		@apply w-full rounded-[10px] border px-3 py-2 text-[0.95rem];
+		border-color: rgba(24, 35, 45, 0.18);
+		background: rgba(255, 255, 255, 0.94);
+		color: var(--ink);
+		font: inherit;
+	}
+
+	.search-input {
+		@apply rounded-full;
+		width: min(430px, 100%);
+		border-color: rgba(92, 62, 40, 0.24);
+		background: #fffaf6;
+	}
+
+	textarea {
+		@apply min-h-[88px] resize-y;
+	}
+
+	input:focus,
+	textarea:focus,
+	select:focus,
+	.primary-button:focus,
+	.ghost-button:focus,
+	.danger-button:focus,
+	.tab-button:focus,
+	.filter-button:focus {
+		outline: 2px solid rgba(180, 90, 42, 0.4);
+		outline-offset: 1px;
+	}
+
+	.form-grid {
+		@apply grid gap-3;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.form-actions {
+		@apply col-span-full flex flex-wrap gap-2;
+	}
+
+	.primary-button,
+	.ghost-button,
+	.danger-button,
+	.filter-button {
+		@apply cursor-pointer rounded-full px-4 py-2 transition;
+		font: inherit;
+	}
+
+	.primary-button {
+		@apply text-white shadow-[0_10px_22px_rgba(138,90,56,0.24)];
+		background: var(--accent);
+	}
+
+	.primary-button:disabled,
+	.ghost-button:disabled,
+	.danger-button:disabled,
+	.filter-button:disabled {
+		@apply cursor-not-allowed opacity-60;
+	}
+
+	.primary-button:hover:not(:disabled),
+	.ghost-button:hover:not(:disabled),
+	.danger-button:hover:not(:disabled),
+	.filter-button:hover:not(:disabled) {
+		@apply -translate-y-px;
+	}
+
+	.ghost-button {
+		background: #f8f1e8;
+		color: #4a3526;
+		border: 1px solid rgba(74, 53, 38, 0.2);
+	}
+
+	.danger-button {
+		color: #8c2421;
+		background: rgba(158, 50, 47, 0.12);
+		border: 1px solid rgba(158, 50, 47, 0.24);
+	}
+
+	.filter-button {
+		background: #f2e7dc;
+		color: #4a3527;
+	}
+
+	.filter-button-active {
+		background: #6f4228;
+		color: #fff;
+	}
+
+	.table-wrap {
+		@apply overflow-x-auto;
+	}
+
+	table {
+		@apply w-full border-collapse;
+	}
+
+	th,
+	td {
+		@apply border-b px-2 py-2.5 text-left text-[0.9rem];
+		border-bottom-color: rgba(24, 35, 45, 0.08);
+	}
+
+	th {
+		@apply text-[0.78rem] font-semibold uppercase tracking-[0.05em];
+		color: var(--muted);
+	}
+
+	.table-tools {
+		@apply mb-2 flex justify-end;
+	}
+
+	.report-search {
+		@apply ml-auto;
+	}
+
+	.pagination-row {
+		@apply mt-3 flex items-center justify-end gap-2 text-[0.84rem];
+		color: var(--muted);
+	}
+
+	.row-actions {
+		@apply flex flex-wrap gap-2;
+	}
+
+	.panel-head {
+		@apply mb-3 flex items-center justify-between gap-3;
+	}
+
+	.metric-grid {
+		@apply grid gap-4;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	}
+
+	.metric-card {
+		@apply p-4;
+	}
+
+	.metric-value {
+		@apply mt-1.5 text-[2rem] font-bold;
+	}
+
+	.metric-card-warn {
+		background: #f6e5d6;
+	}
+
+	.metric-card-ok {
+		background: #e5efe9;
+	}
+
+	.split {
+		@apply grid gap-4;
+		grid-template-columns: 1fr 1.28fr;
+	}
+
+	.list-stack {
+		@apply grid gap-2.5;
+	}
+
+	.list-card,
+	.delivery-card {
+		@apply flex items-start justify-between gap-3 rounded-[14px] border p-3;
+		border-color: rgba(24, 35, 45, 0.1);
+		background: rgba(255, 255, 255, 0.85);
+	}
+
+	.list-card p,
+	.delivery-card p {
+		@apply text-[0.83rem];
+		color: var(--muted);
+	}
+
+	.chip-list {
+		@apply mt-2 flex flex-wrap gap-1.5;
+	}
+
+	.chip {
+		@apply rounded-full px-2 py-1 text-[0.75rem];
+		background: var(--accent-soft);
+		color: #6a2f19;
+	}
+
+	.delivery-item-row {
+		@apply mb-2 grid gap-2;
+		grid-template-columns: minmax(0, 1fr) 92px auto;
+	}
+
+	.filter-row {
+		@apply mb-3 flex flex-wrap gap-2;
+	}
+
+	.status-badge {
+		@apply inline-flex items-center rounded-full px-2.5 py-1 text-[0.76rem] font-semibold;
+	}
+
+	.status-badge-pending {
+		background: var(--warn-soft);
+		color: #7c3421;
+	}
+
+	.status-badge-ok {
+		background: var(--ok-soft);
+		color: #175243;
+	}
+}

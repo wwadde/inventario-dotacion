@@ -1,0 +1,102 @@
+<section class="split">
+  <article class="panel form-panel">
+    <h2>Asignar requerimiento</h2>
+
+    <form class="form-grid" [formGroup]="requirementForm()" (ngSubmit)="createRequirement.emit()">
+      <label class="field field-full">
+        <span>Empleado</span>
+        <select formControlName="employeeId">
+          <option value="">Selecciona un empleado</option>
+          @for (employee of employees(); track employee.id) {
+            <option [value]="employee.id">{{ employee.fullName }} · {{ employee.documentNumber }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field field-full">
+        <span>Implemento</span>
+        <select formControlName="itemTypeId">
+          <option value="">Selecciona un implemento</option>
+          @for (item of items(); track item.id) {
+            <option [value]="item.id">{{ item.code }} · {{ item.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Periodicidad (meses)</span>
+        <input type="number" min="1" max="60" formControlName="periodicityMonths" />
+      </label>
+
+      <label class="field">
+        <span>Vigente desde</span>
+        <input type="date" formControlName="effectiveFrom" />
+      </label>
+
+      <label class="field field-full">
+        <span>Notas</span>
+        <textarea rows="3" formControlName="notes"></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-button" [disabled]="!canManage()">Asignar</button>
+      </div>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Requerimientos vigentes</h2>
+      <span>{{ filteredCount() }} resultados</span>
+    </div>
+
+    <div class="table-tools">
+      <input
+        class="search-input"
+        type="search"
+        [value]="requirementQuery()"
+        (input)="setRequirementQuery.emit($any($event.target).value)"
+        placeholder="Buscar por empleado o implemento"
+      />
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Empleado</th>
+            <th>Implemento</th>
+            <th>Periodicidad</th>
+            <th>Inicio</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (requirement of paginatedRequirements(); track requirement.id) {
+            <tr>
+              <td>{{ requirement.employeeName }}</td>
+              <td>{{ requirement.itemName }}</td>
+              <td>{{ requirement.periodicityMonths }} meses</td>
+              <td>{{ requirement.effectiveFrom }}</td>
+              <td>
+                <button type="button" class="danger-button" [disabled]="!canManage()" (click)="deleteRequirement.emit(requirement)">
+                  Eliminar
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-row">No hay requerimientos configurados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination-row">
+      <button type="button" class="ghost-button" (click)="previousPage.emit()" [disabled]="currentPage() <= 1">Anterior</button>
+      <span>Pagina {{ currentPage() }} de {{ totalPages() }}</span>
+      <button type="button" class="ghost-button" (click)="nextPage.emit()" [disabled]="currentPage() >= totalPages()">Siguiente</button>
+    </div>
+  </article>
+</section>

@@ -1,0 +1,282 @@
+app-root {
+	--page: #f3ede2;
+	--ink: #2f231b;
+	--muted: #6f5b4d;
+	--panel-border: #d8c7b7;
+	--accent: #8a5a38;
+	--accent-soft: #f0e0d1;
+	--ok-soft: #deeee7;
+	--warn-soft: #f4e1cf;
+	display: block;
+	min-height: 100dvh;
+	color: var(--ink);
+}
+
+.app-background {
+	position: fixed;
+	inset: 0;
+	overflow: hidden;
+	z-index: -1;
+	background-color: var(--page);
+	background-image: url('/mercacentro-pattern.svg');
+	background-repeat: repeat;
+	background-size: 300px 300px;
+}
+
+.shell {
+	display: grid;
+	gap: 1rem;
+	padding-block: 1.25rem;
+}
+
+.hero {
+	padding: 1.4rem 1.5rem;
+	gap: 1.1rem;
+	animation: riseIn 460ms ease both;
+}
+
+.hero-actions {
+	display: grid;
+	gap: 0.6rem;
+	min-width: 360px;
+	justify-items: end;
+}
+
+.admin-card {
+	width: min(430px, 100%);
+	display: grid;
+	gap: 0.6rem;
+	padding: 0.95rem;
+	border-radius: 14px;
+	background: #faf5ef;
+	border: 1px solid #dfcfbf;
+	box-shadow: 0 8px 20px rgba(96, 64, 40, 0.12);
+}
+
+.admin-card-title {
+	font-weight: 700;
+	font-size: 0.92rem;
+	color: #5a3d2a;
+}
+
+.admin-card-copy {
+	font-size: 0.82rem;
+	color: var(--muted);
+}
+
+.admin-card-user {
+	font-size: 1rem;
+	font-weight: 700;
+	color: #4a3121;
+}
+
+.admin-card-actions {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}
+
+.field-inline {
+	min-width: 140px;
+}
+
+.eyebrow {
+	margin: 0;
+	font-size: 0.76rem;
+	text-transform: uppercase;
+	color: var(--accent);
+	font-weight: 700;
+}
+
+h1 {
+	font-family: 'Fraunces', Georgia, serif;
+	margin: 0.35rem 0;
+	font-size: clamp(1.75rem, 3.4vw, 2.7rem);
+	line-height: 1.1;
+	color: #3d2a1d;
+}
+
+h2 {
+	margin: 0;
+	font-size: 1.12rem;
+	font-family: 'Fraunces', Georgia, serif;
+	font-weight: 650;
+}
+
+h3 {
+	margin: 0;
+}
+
+p {
+	margin: 0;
+}
+
+.hero-copy {
+	max-width: 760px;
+	color: var(--muted);
+}
+
+.tabs {
+	padding: 0.5rem;
+	animation: riseIn 560ms ease both;
+}
+
+.data-toolbar {
+	padding: 0.8rem 1rem;
+}
+
+.toolbar-row {
+	display: flex;
+	gap: 0.65rem;
+	align-items: end;
+	justify-content: space-between;
+	flex-wrap: wrap;
+}
+
+.toolbar-field {
+	min-width: 320px;
+	max-width: 640px;
+	width: 100%;
+}
+
+.loading-panel {
+	padding: 0.9rem 1rem;
+	color: var(--muted);
+}
+
+.dashboard-sections {
+	margin-top: 0.55rem;
+}
+
+.metric-card {
+	animation: riseIn 520ms ease both;
+}
+
+.metric-card:nth-child(2) {
+	animation-delay: 65ms;
+}
+
+.metric-card:nth-child(3) {
+	animation-delay: 120ms;
+}
+
+.metric-card:nth-child(4) {
+	animation-delay: 180ms;
+}
+
+.metric-card-warn {
+	background: #f6e5d6;
+}
+
+.metric-card-ok {
+	background: #e5efe9;
+}
+
+
+@keyframes riseIn {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (max-width: 1080px) {
+	.split {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 740px) {
+	.shell {
+		padding-block: 0.95rem 1.35rem;
+	}
+
+	.hero {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.hero-actions {
+		min-width: 100%;
+		justify-items: stretch;
+	}
+
+	.admin-card {
+		width: 100%;
+	}
+
+	.admin-card-actions {
+		justify-content: stretch;
+	}
+
+	.admin-card-actions .primary-button,
+	.admin-card-actions .ghost-button {
+		width: 100%;
+	}
+
+	.hero-copy {
+		max-width: 100%;
+	}
+
+	.form-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.toolbar-field {
+		min-width: 0;
+	}
+
+	.delivery-item-row {
+		grid-template-columns: 1fr;
+	}
+
+	.row-actions {
+		flex-direction: column;
+	}
+
+	.table-tools,
+	.pagination-row {
+		justify-content: stretch;
+	}
+
+	.pagination-row {
+		flex-wrap: wrap;
+	}
+
+	.search-input,
+	.report-search {
+		width: 100%;
+		margin-left: 0;
+	}
+
+	.list-card,
+	.delivery-card {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}
+
+@media (max-width: 560px) {
+	.panel {
+		padding: 0.85rem;
+	}
+
+	th,
+	td {
+		font-size: 0.83rem;
+	}
+
+	.tab-button,
+	.primary-button,
+	.ghost-button,
+	.danger-button,
+	.filter-button {
+		font-size: 0.86rem;
+	}
+}

@@ -1,0 +1,80 @@
+<section class="metric-grid">
+  <article class="panel metric-card">
+    <p class="metric-label">Empleados activos</p>
+    <p class="metric-value">{{ dashboard()?.totalActiveEmployees ?? 0 }}</p>
+  </article>
+
+  <article class="panel metric-card metric-card-warn">
+    <p class="metric-label">Pendientes por atender</p>
+    <p class="metric-value">{{ dashboard()?.pendingEmployees ?? 0 }}</p>
+  </article>
+
+  <article class="panel metric-card metric-card-ok">
+    <p class="metric-label">Empleados al dia</p>
+    <p class="metric-value">{{ dashboard()?.upToDateEmployees ?? 0 }}</p>
+  </article>
+
+  <article class="panel metric-card">
+    <p class="metric-label">Entregas este mes</p>
+    <p class="metric-value">{{ dashboard()?.deliveriesThisMonth ?? 0 }}</p>
+  </article>
+</section>
+
+<section class="split dashboard-sections">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Pendientes de dotacion</h2>
+      <span>{{ pendingRows().length }} en foco</span>
+    </div>
+
+    @if (pendingRows().length === 0) {
+      <p class="empty">No hay pendientes inmediatos. Excelente trabajo.</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Empleado</th>
+              <th>Pendientes</th>
+              <th>Implementos</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of pendingRows(); track row.employeeId) {
+              <tr>
+                <td>{{ row.employeeName }}</td>
+                <td>{{ row.pendingRequirements }}</td>
+                <td>{{ row.pendingItems || 'N/A' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Ultimas entregas</h2>
+      <span>{{ recentDeliveries().length }} registros</span>
+    </div>
+
+    @if (recentDeliveries().length === 0) {
+      <p class="empty">Aun no hay entregas registradas.</p>
+    } @else {
+      <div class="list-stack">
+        @for (delivery of recentDeliveries(); track delivery.id) {
+          <article class="list-card">
+            <div>
+              <h3>{{ delivery.employeeName }}</h3>
+              <p>{{ delivery.deliveredAt }} · {{ delivery.certificateNumber }}</p>
+            </div>
+            <button type="button" class="ghost-button" [disabled]="!canManage()" (click)="viewCertificate.emit(delivery)">
+              PDF
+            </button>
+          </article>
+        }
+      </div>
+    }
+  </article>
+</section>
