@@ -1,6 +1,7 @@
 gg:
   jte:
     usePrecompiledTemplates: true
+    development-mode: false
 
 springdoc:
   api-docs:
