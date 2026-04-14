@@ -26,6 +26,8 @@ spring:
         format_sql: true
   config:
     import: optional:file:.env[.properties]
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
 
 
 server:
