@@ -71,6 +71,20 @@ jte {
 	binaryStaticContent = true
 }
 
+tasks.withType<BootJar>().configureEach {
+	dependsOn(tasks.named("precompileJte"))
+	from(fileTree("jte-classes") {
+		include("**/*.class")
+	}) {
+		into("BOOT-INF/classes")
+	}
+	from(fileTree("build/generated-resources/jte") {
+		include("**/*.bin")
+	}) {
+		into("BOOT-INF/classes")
+	}
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
