@@ -1,5 +1,10 @@
+import gg.jte.ContentType
+import gg.jte.gradle.GenerateJteTask
+import java.nio.file.Paths
+
 plugins {
 	java
+	id("gg.jte.gradle") version "3.2.3"
 	id("org.springframework.boot") version "4.0.5"
 	id("io.spring.dependency-management") version "1.1.7"
 }
@@ -18,6 +23,7 @@ repositories {
 }
 
 dependencies {
+	implementation("gg.jte:jte:3.2.3")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -62,6 +68,13 @@ dependencies {
 	testAnnotationProcessor("org.projectlombok:lombok")
 }
 
+jte {
+  precompile()
+  binaryStaticContent = true
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+
