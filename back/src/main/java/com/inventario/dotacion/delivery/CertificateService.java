@@ -39,13 +39,13 @@ public class CertificateService {
     }
 
     private String renderCertificateHtml(Delivery delivery) {
-        List<CertificateItemRow> items = new ArrayList<>();
+        List<Map<String, Object>> items = new ArrayList<>();
         for (DeliveryItem item : delivery.getItems()) {
-            items.add(new CertificateItemRow(
-                    item.getItemType().getCode(),
-                    item.getItemType().getName(),
-                    item.getQuantity()
-            ));
+            Map<String, Object> row = new HashMap<>();
+            row.put("code", item.getItemType().getCode());
+            row.put("name", item.getItemType().getName());
+            row.put("quantity", item.getQuantity());
+            items.add(row);
         }
 
         Map<String, Object> model = new HashMap<>();
@@ -71,6 +71,4 @@ public class CertificateService {
         }
         return "data:image/png;base64," + Base64.getEncoder().encodeToString(signatureImage);
     }
-
-    public record CertificateItemRow(String code, String name, int quantity) {}
 }

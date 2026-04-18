@@ -50,5 +50,5 @@ app:
 
 gg:
   jte:
-    template-location: src/main/resources/templates
+    template-location: src/main/jte
     developmentMode: true

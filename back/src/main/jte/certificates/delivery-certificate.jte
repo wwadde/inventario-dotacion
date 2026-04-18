@@ -7,7 +7,7 @@
 @param String signerName
 @param String notes
 @param String signatureDataUrl
-@param java.util.List<com.inventario.dotacion.delivery.CertificateService.CertificateItemRow> items
+@param java.util.List<java.util.Map<String, Object>> items
 <!doctype html>
 <html lang="es">
 <head>
@@ -178,9 +178,9 @@
     <tbody>
     @for(var item : items)
     <tr>
-        <td>${item.code()}</td>
-        <td>${item.name()}</td>
-        <td class="qty">${item.quantity()}</td>
+        <td>${String.valueOf(item.get("code"))}</td>
+        <td>${String.valueOf(item.get("name"))}</td>
+        <td class="qty">${String.valueOf(item.get("quantity"))}</td>
     </tr>
     @endfor
     </tbody>

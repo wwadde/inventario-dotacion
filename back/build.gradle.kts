@@ -1,6 +1,4 @@
-import gg.jte.ContentType
-import gg.jte.gradle.GenerateJteTask
-import java.nio.file.Paths
+import org.springframework.boot.gradle.tasks.bundling.BootJar
 
 plugins {
 	java
@@ -69,8 +67,8 @@ dependencies {
 }
 
 jte {
-  precompile()
-  binaryStaticContent = true
+	precompile()
+	binaryStaticContent = true
 }
 
 tasks.withType<Test> {
