@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ViewEncapsulation, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewEncapsulation, computed, inject } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ComplianceStatus, Delivery, Employee, ItemType, Requirement, RequirementStatusFilter } from './core/dotacion.models';
 import { AppFacade } from './app-facade.service';
@@ -29,14 +30,20 @@ import { RequirementsView } from './features/requirements-view/requirements-view
 })
 export class App {
   private readonly facade = inject(AppFacade);
+  private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly currentView = this.facade.currentView;
   protected readonly loading = this.facade.loading;
   protected readonly errorMessage = this.facade.errorMessage;
   protected readonly successMessage = this.facade.successMessage;
+  protected readonly inlineCertificateOpen = this.facade.inlineCertificateOpen;
   protected readonly authLoading = this.facade.authLoading;
   protected readonly canManage = this.facade.canManage;
   protected readonly authenticatedUsername = this.facade.authenticatedUsername;
+  protected readonly inlineCertificateResourceUrl = computed<SafeResourceUrl | null>(() => {
+    const objectUrl = this.facade.inlineCertificateUrl();
+    return objectUrl ? this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl) : null;
+  });
 
   protected readonly navigation = this.facade.navigation;
   protected readonly loginForm = this.facade.loginForm;
@@ -286,8 +293,16 @@ export class App {
     return this.facade.exportComplianceExcel();
   }
 
+  protected closeInlineCertificate(): void {
+    this.facade.closeInlineCertificate();
+  }
+
   protected isDeliveriesView(): boolean {
     return this.currentView() === 'deliveries-implementos';
+  }
+
+  protected stopModalClose(event: Event): void {
+    event.stopPropagation();
   }
 
 }

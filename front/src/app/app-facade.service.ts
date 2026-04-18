@@ -80,6 +80,8 @@ export class AppFacade {
   readonly deliverySubmitState = signal<'idle' | 'success' | 'error'>('idle');
   readonly deliveryValidationErrors = signal<Record<string, string[]>>({});
   readonly stockSubmitState = signal<'idle' | 'success' | 'error'>('idle');
+  readonly inlineCertificateUrl = signal<string | null>(null);
+  readonly inlineCertificateOpen = computed(() => this.inlineCertificateUrl() !== null);
 
   readonly navigation = [
     { id: 'dashboard', label: 'Resumen' },
@@ -903,22 +905,42 @@ export class AppFacade {
       return;
     }
 
-    const previewWindow = window.open('about:blank', '_blank');
+    const shouldOpenInNewTab = this.isMobileViewport();
+    let previewWindow: Window | null = null;
 
-    if (previewWindow && !previewWindow.closed) {
-      previewWindow.document.title = 'Generando certificado...';
-      previewWindow.document.body.innerHTML = '<p style="font-family: Manrope, Segoe UI, sans-serif; padding: 18px; color: #4a3526;">Generando certificado PDF...</p>';
+    if (shouldOpenInNewTab) {
+      previewWindow = window.open('about:blank', '_blank');
+
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.document.title = 'Generando certificado...';
+        previewWindow.document.body.innerHTML = '<p style="font-family: Manrope, Segoe UI, sans-serif; padding: 18px; color: #4a3526;">Generando certificado PDF...</p>';
+      }
     }
 
     try {
       const file = await firstValueFrom(this.api.downloadCertificate(delivery.id));
-      this.openPdfInNewTab(file, previewWindow);
+
+      if (shouldOpenInNewTab) {
+        this.openPdfInNewTab(file, previewWindow);
+        return;
+      }
+
+      this.openPdfInline(file);
     } catch (error: unknown) {
       if (previewWindow && !previewWindow.closed) {
         previewWindow.close();
       }
-      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible abrir el certificado en una nueva ventana.'));
+      this.errorMessage.set(this.extractApiErrorMessage(error, 'No fue posible abrir el certificado PDF.'));
     }
+  }
+
+  closeInlineCertificate(): void {
+    const currentUrl = this.inlineCertificateUrl();
+    if (currentUrl) {
+      URL.revokeObjectURL(currentUrl);
+    }
+
+    this.inlineCertificateUrl.set(null);
   }
 
   async exportComplianceExcel(): Promise<void> {
@@ -1242,6 +1264,20 @@ export class AppFacade {
     anchor.click();
 
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120000);
+  }
+
+  private openPdfInline(blob: Blob): void {
+    this.closeInlineCertificate();
+    const objectUrl = URL.createObjectURL(blob);
+    this.inlineCertificateUrl.set(objectUrl);
+  }
+
+  private isMobileViewport(): boolean {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+
+    return window.matchMedia('(max-width: 740px), (pointer: coarse)').matches;
   }
 
   private pageCount(totalRows: number): number {

@@ -30,8 +30,8 @@ Aplicacion para gestionar dotaciones empresariales con:
 4. Exponer solo frontend en HTTP/HTTPS y dejar backend interno.
 
 
-
-http://16.59.207.174:3000/
+dokploy
+http://18.216.85.114:3000
 
 Variable de entorno en el front:
 BACKEND_URL=http://dotaciones-back-xrf0wu:8080

@@ -525,6 +525,19 @@ p {
 	width: min(980px, 100%);
 }
 
+.modal-shell-pdf {
+	width: min(1120px, 100%);
+	padding: 1rem;
+}
+
+.pdf-frame {
+	width: 100%;
+	height: min(78dvh, 880px);
+	border: 1px solid rgba(114, 79, 53, 0.24);
+	border-radius: 12px;
+	background: #fff;
+}
+
 .modal-head {
 	display: flex;
 	align-items: center;
@@ -798,9 +811,14 @@ p {
 	}
 
 	.modal-shell,
-	.modal-shell-wide {
+	.modal-shell-wide,
+	.modal-shell-pdf {
 		width: min(100%, 100%);
 		max-height: calc(100dvh - 1.2rem);
+	}
+
+	.pdf-frame {
+		height: 72dvh;
 	}
 
 	.modal-head {
