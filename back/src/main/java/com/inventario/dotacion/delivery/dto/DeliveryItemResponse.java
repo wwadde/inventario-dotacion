@@ -10,6 +10,7 @@ public record DeliveryItemResponse(
         String itemCode,
         String itemName,
         ItemCategory category,
+        String size,
         int quantity
 ) {
 }

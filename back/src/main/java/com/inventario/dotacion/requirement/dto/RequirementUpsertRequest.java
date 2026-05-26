@@ -17,6 +17,9 @@ public record RequirementUpsertRequest(
         @Min(value = 1, message = "La cantidad solicitada debe ser mayor a cero")
         int requestedQuantity,
 
+        @Size(max = 40, message = "La talla no puede superar 40 caracteres")
+        String size,
+
         @Size(max = 500, message = "Las notas no pueden superar 500 caracteres")
         String notes
 ) {

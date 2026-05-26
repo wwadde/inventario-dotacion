@@ -172,6 +172,7 @@
     <tr>
         <th>Codigo</th>
         <th>Implemento</th>
+        <th>Talla</th>
         <th class="qty">Cantidad</th>
     </tr>
     </thead>
@@ -180,6 +181,7 @@
     <tr>
         <td>${String.valueOf(item.get("code"))}</td>
         <td>${String.valueOf(item.get("name"))}</td>
+        <td>${item.get("size") == null ? "-" : String.valueOf(item.get("size"))}</td>
         <td class="qty">${String.valueOf(item.get("quantity"))}</td>
     </tr>
     @endfor

@@ -9,6 +9,7 @@ import com.inventario.dotacion.common.security.DataPrivacyService;
 import com.inventario.dotacion.employee.Employee;
 import com.inventario.dotacion.employee.EmployeeService;
 import com.inventario.dotacion.item.ItemCategory;
+import com.inventario.dotacion.item.ItemSizeType;
 import com.inventario.dotacion.item.ItemType;
 import com.inventario.dotacion.item.ItemTypeService;
 import com.inventario.dotacion.requirement.dto.RequirementResponse;
@@ -71,7 +72,7 @@ public class RequirementService {
         requirement.setClosed(false);
         requirement.setClosedAt(null);
         requirement.setClosedBy(null);
-        apply(requirement, request);
+        apply(requirement, request, itemType);
 
         return toResponse(requirementRepository.save(requirement), true);
     }
@@ -103,7 +104,7 @@ public class RequirementService {
 
         requirement.setEmployee(employee);
         requirement.setItemType(itemType);
-        apply(requirement, request);
+        apply(requirement, request, itemType);
 
         return toResponse(requirementRepository.save(requirement), true);
     }
@@ -119,9 +120,21 @@ public class RequirementService {
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la solicitud solicitada."));
     }
 
-    private void apply(EmployeeRequirement requirement, RequirementUpsertRequest request) {
+    private void apply(EmployeeRequirement requirement, RequirementUpsertRequest request, ItemType itemType) {
         requirement.setRequestedQuantity(request.requestedQuantity());
         requirement.setNotes(normalizeNullable(request.notes()));
+
+        String sizeValue = normalizeNullable(request.size());
+        ItemSizeType sizeType = itemType.getSizeType();
+        if (sizeType != ItemSizeType.NONE) {
+            if (!StringUtils.hasText(sizeValue)) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST,
+                        "Debe indicar la talla para el implemento " + itemType.getCode() + ".");
+            }
+            requirement.setSize(sizeValue);
+        } else {
+            requirement.setSize(null);
+        }
     }
 
     private void validateDotacionCategory(ItemType itemType) {
@@ -152,6 +165,7 @@ public class RequirementService {
                 requirement.getItemType().getCode(),
                 requirement.getItemType().getName(),
                 requirement.getRequestedQuantity(),
+                requirement.getSize(),
                 requirement.getNotes(),
             requirement.isClosed(),
             requirement.getClosedAt(),

@@ -3,6 +3,7 @@ package com.inventario.dotacion.item.dto;
 import java.math.BigDecimal;
 
 import com.inventario.dotacion.item.ItemCategory;
+import com.inventario.dotacion.item.ItemSizeType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
@@ -21,6 +22,8 @@ public record ItemTypeUpsertRequest(
 
         @NotNull(message = "La categoria es obligatoria")
         ItemCategory category,
+
+        ItemSizeType sizeType,
 
         @Size(max = 500, message = "La descripcion no puede superar 500 caracteres")
         String description,

@@ -44,6 +44,7 @@ public class CertificateService {
             Map<String, Object> row = new HashMap<>();
             row.put("code", item.getItemType().getCode());
             row.put("name", item.getItemType().getName());
+            row.put("size", item.getSize());
             row.put("quantity", item.getQuantity());
             items.add(row);
         }

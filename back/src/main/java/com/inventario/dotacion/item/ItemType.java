@@ -39,6 +39,10 @@ public class ItemType {
     @Column(nullable = false, length = 40)
     private ItemCategory category;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "size_type", nullable = false, length = 20)
+    private ItemSizeType sizeType = ItemSizeType.NONE;
+
     @Column(length = 500)
     private String description;
 

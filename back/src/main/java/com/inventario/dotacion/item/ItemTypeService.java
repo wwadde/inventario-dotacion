@@ -124,6 +124,12 @@ public class ItemTypeService {
         itemType.setDescription(normalizeNullable(request.description()));
         itemType.setUnitCost(request.unitCost().setScale(2, RoundingMode.HALF_UP));
         itemType.setAvailableStock(request.availableStock());
+
+        ItemSizeType sizeType = request.sizeType() == null ? ItemSizeType.NONE : request.sizeType();
+        if (request.category() != ItemCategory.DOTACION) {
+            sizeType = ItemSizeType.NONE;
+        }
+        itemType.setSizeType(sizeType);
     }
 
     private String normalizeNullable(String value) {
@@ -139,6 +145,7 @@ public class ItemTypeService {
                 itemType.getCode(),
                 itemType.getName(),
                 itemType.getCategory(),
+            itemType.getSizeType(),
                 itemType.getDescription(),
                 itemType.getUnitCost(),
                 itemType.getAvailableStock(),

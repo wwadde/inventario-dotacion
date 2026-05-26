@@ -42,6 +42,9 @@ public class EmployeeRequirement {
     @Column(name = "requested_quantity", nullable = false)
     private int requestedQuantity;
 
+    @Column(name = "size_label", length = 40)
+    private String size;
+
     @Column(length = 500)
     private String notes;
 

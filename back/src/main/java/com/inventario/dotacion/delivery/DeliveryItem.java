@@ -38,6 +38,9 @@ public class DeliveryItem {
     @JoinColumn(name = "item_type_id", nullable = false)
     private ItemType itemType;
 
+    @Column(name = "size_label", length = 40)
+    private String size;
+
     @Column(nullable = false)
     private int quantity;
 

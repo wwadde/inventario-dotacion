@@ -12,6 +12,7 @@ public record RequirementResponse(
         String itemCode,
         String itemName,
         int requestedQuantity,
+        String size,
         String notes,
         boolean closed,
         OffsetDateTime closedAt,

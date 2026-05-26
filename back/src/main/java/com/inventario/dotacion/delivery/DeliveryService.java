@@ -22,6 +22,7 @@ import com.inventario.dotacion.delivery.dto.DeliveryResponse;
 import com.inventario.dotacion.employee.Employee;
 import com.inventario.dotacion.employee.EmployeeService;
 import com.inventario.dotacion.item.ItemCategory;
+import com.inventario.dotacion.item.ItemSizeType;
 import com.inventario.dotacion.item.ItemType;
 import com.inventario.dotacion.item.ItemTypeService;
 import com.inventario.dotacion.item.stock.StockMovementService;
@@ -79,6 +80,7 @@ public class DeliveryService {
         String performedBy = accessControlService.currentUsernameOrSystem();
         record StockChange(ItemType itemType, int quantity, int stockBefore, int stockAfter) {}
         Map<UUID, StockChange> stockChanges = new HashMap<>();
+        Map<UUID, EmployeeRequirement> requirementsByItemType = new HashMap<>();
 
         Map<UUID, Integer> requestedQuantityByItemType = new HashMap<>();
         for (DeliveryItemRequest itemRequest : request.items()) {
@@ -125,6 +127,8 @@ public class DeliveryService {
                     .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
                         "No existe una solicitud activa para el implemento " + itemTypeForStock.getCode()
                             + " en este empleado."));
+
+                requirementsByItemType.put(itemTypeId, requirement);
 
                 long deliveredQuantity = deliveryItemRepository
                     .sumDeliveredQuantityForImplementosSinceTimestamp(
@@ -176,6 +180,30 @@ public class DeliveryService {
             DeliveryItem item = new DeliveryItem();
             item.setItemType(itemType);
             item.setQuantity(itemRequest.quantity());
+
+            String sizeValue = normalizeNullable(itemRequest.size());
+            if (deliveryType == DeliveryType.IMPLEMENTOS && itemType.getSizeType() != ItemSizeType.NONE) {
+                EmployeeRequirement requirement = requirementsByItemType.get(itemType.getId());
+                String requiredSize = requirement == null ? null : normalizeNullable(requirement.getSize());
+
+                if (StringUtils.hasText(requiredSize)) {
+                    if (!StringUtils.hasText(sizeValue)
+                        || !requiredSize.equalsIgnoreCase(sizeValue)) {
+                        throw new BusinessException(HttpStatus.BAD_REQUEST,
+                            "La talla registrada para la solicitud del implemento " + itemType.getCode()
+                                + " es " + requiredSize + ".");
+                    }
+                    item.setSize(requiredSize);
+                } else {
+                    if (!StringUtils.hasText(sizeValue)) {
+                        throw new BusinessException(HttpStatus.BAD_REQUEST,
+                            "Debe indicar la talla para el implemento " + itemType.getCode() + ".");
+                    }
+                    item.setSize(sizeValue);
+                }
+            } else {
+                item.setSize(null);
+            }
 
             delivery.addItem(item);
         }
@@ -295,6 +323,7 @@ public class DeliveryService {
                         item.getItemType().getCode(),
                         item.getItemType().getName(),
                         item.getItemType().getCategory(),
+                    item.getSize(),
                         item.getQuantity()
                 ))
                 .toList();
