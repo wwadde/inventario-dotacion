@@ -15,6 +15,7 @@ export interface Employee {
 }
 
 export type ItemCategory = 'DOTACION' | 'REGALO';
+export type ItemSizeType = 'NONE' | 'ROPA' | 'CALZADO';
 export type StockMovementType = 'INBOUND' | 'OUTBOUND' | 'ADJUSTMENT';
 export type DeliveryType = 'IMPLEMENTOS' | 'REGALOS';
 export type RequirementStatusFilter = 'OPEN' | 'CLOSED' | 'ALL';
@@ -24,6 +25,7 @@ export interface ItemType {
   code: string;
   name: string;
   category: ItemCategory;
+  sizeType: ItemSizeType;
   description: string | null;
   unitCost: number;
   availableStock: number;
@@ -41,6 +43,7 @@ export interface Requirement {
   itemCode: string;
   itemName: string;
   requestedQuantity: number;
+  size: string | null;
   notes: string | null;
   closed: boolean;
   closedAt: string | null;
@@ -55,6 +58,7 @@ export interface DeliveryItem {
   itemCode: string;
   itemName: string;
   category: ItemCategory;
+  size: string | null;
   quantity: number;
 }
 
@@ -128,6 +132,7 @@ export interface ItemTypePayload {
   code: string;
   name: string;
   category: ItemCategory;
+  sizeType: ItemSizeType;
   description: string | null;
   unitCost: number;
   availableStock: number;
@@ -138,6 +143,7 @@ export interface RequirementPayload {
   employeeId: string;
   itemTypeId: string;
   requestedQuantity: number;
+  size: string | null;
   notes: string | null;
 }
 
@@ -152,6 +158,7 @@ export interface DeliveryPayload {
   duplicateAcknowledged: boolean;
   items: Array<{
     itemTypeId: string;
+    size: string | null;
     quantity: number;
   }>;
 }

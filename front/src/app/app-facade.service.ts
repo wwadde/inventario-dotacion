@@ -19,6 +19,7 @@ import {
   Employee,
   EmployeePayload,
   ItemCategory,
+  ItemSizeType,
   ItemType,
   ItemTypePayload,
   Requirement,
@@ -104,6 +105,14 @@ export class AppFacade {
     REGALO: 'Regalo',
   };
 
+  readonly itemSizeTypes: ItemSizeType[] = ['NONE', 'ROPA', 'CALZADO'];
+
+  readonly itemSizeTypeLabel: Record<ItemSizeType, string> = {
+    NONE: 'Sin talla',
+    ROPA: 'Ropa',
+    CALZADO: 'Calzado',
+  };
+
   readonly employeeForm = this.fb.group({
     documentNumber: this.fb.control('', [Validators.required, Validators.maxLength(40)]),
     firstName: this.fb.control('', [Validators.required, Validators.maxLength(120)]),
@@ -120,6 +129,7 @@ export class AppFacade {
     code: this.fb.control('', [Validators.required, Validators.maxLength(30)]),
     name: this.fb.control('', [Validators.required, Validators.maxLength(140)]),
     category: this.fb.control<ItemCategory>('DOTACION', [Validators.required]),
+    sizeType: this.fb.control<ItemSizeType>('NONE', [Validators.required]),
     description: this.fb.control('', [Validators.maxLength(500)]),
     unitCost: this.fb.control(0, [Validators.required, Validators.min(0)]),
     availableStock: this.fb.control(0, [Validators.required, Validators.min(0)]),
@@ -142,6 +152,7 @@ export class AppFacade {
     employeeId: this.fb.control('', [Validators.required]),
     itemTypeId: this.fb.control('', [Validators.required]),
     requestedQuantity: this.fb.control(1, [Validators.required, Validators.min(1)]),
+    size: this.fb.control('', [Validators.maxLength(40)]),
     notes: this.fb.control('', [Validators.maxLength(500)]),
   });
 
@@ -601,6 +612,7 @@ export class AppFacade {
       code: this.itemForm.controls.code.value.trim().toUpperCase(),
       name: this.itemForm.controls.name.value.trim(),
       category: this.itemForm.controls.category.value,
+      sizeType: this.itemForm.controls.sizeType.value,
       description: this.emptyAsNull(this.itemForm.controls.description.value),
       unitCost: this.roundToTwoDecimals(this.itemForm.controls.unitCost.value),
       availableStock: this.itemForm.controls.availableStock.value,
@@ -632,6 +644,7 @@ export class AppFacade {
       code: item.code,
       name: item.name,
       category: item.category,
+      sizeType: item.sizeType ?? 'NONE',
       description: item.description ?? '',
       unitCost: item.unitCost,
       availableStock: item.availableStock,
@@ -713,6 +726,7 @@ export class AppFacade {
       employeeId: this.requirementForm.controls.employeeId.value,
       itemTypeId: this.requirementForm.controls.itemTypeId.value,
       requestedQuantity: this.requirementForm.controls.requestedQuantity.value,
+      size: this.emptyAsNull(this.requirementForm.controls.size.value),
       notes: this.emptyAsNull(this.requirementForm.controls.notes.value),
     };
 
@@ -746,6 +760,7 @@ export class AppFacade {
       employeeId: requirement.employeeId,
       itemTypeId: requirement.itemTypeId,
       requestedQuantity: requirement.requestedQuantity,
+      size: requirement.size ?? '',
       notes: requirement.notes ?? '',
     });
   }
@@ -819,6 +834,7 @@ export class AppFacade {
       items: this.deliveryItems.controls
         .map((itemControl) => ({
           itemTypeId: itemControl.controls.itemTypeId.value,
+          size: this.emptyAsNull(itemControl.controls.size.value),
           quantity: itemControl.controls.quantity.value,
         }))
         .filter((item) => item.itemTypeId.length > 0),
@@ -963,6 +979,7 @@ export class AppFacade {
   private buildDeliveryItemGroup(): DeliveryItemFormGroup {
     return this.fb.group({
       itemTypeId: this.fb.control('', [Validators.required]),
+      size: this.fb.control('', [Validators.maxLength(40)]),
       quantity: this.fb.control(1, [Validators.required, Validators.min(1)]),
     });
   }
@@ -1017,6 +1034,7 @@ export class AppFacade {
       code: '',
       name: '',
       category: 'DOTACION',
+      sizeType: 'NONE',
       description: '',
       unitCost: 0,
       availableStock: 0,
@@ -1030,6 +1048,7 @@ export class AppFacade {
       employeeId: '',
       itemTypeId: '',
       requestedQuantity: 1,
+      size: '',
       notes: '',
     });
   }
@@ -1334,5 +1353,6 @@ export class AppFacade {
 
 type DeliveryItemFormGroup = FormGroup<{
   itemTypeId: FormControl<string>;
+  size: FormControl<string>;
   quantity: FormControl<number>;
 }>;

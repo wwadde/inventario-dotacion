@@ -33,7 +33,7 @@
             }
             <div class="chip-list">
               @for (item of delivery.items; track item.id) {
-                <span class="chip">{{ item.itemName }} x{{ item.quantity }}</span>
+                <span class="chip">{{ item.itemName }}{{ item.size ? ' · T: ' + item.size : '' }} x{{ item.quantity }}</span>
               }
             </div>
           </div>
@@ -134,6 +134,7 @@
             <p class="muted">Modo implementos activo: solo se muestran items solicitados y pendientes por entregar.</p>
           }
 
+
           @for (itemGroup of deliveryItems().controls; track $index; let index = $index) {
             <div class="delivery-item-row" [formGroupName]="index">
               <select formControlName="itemTypeId" (change)="onItemTypeSelected(index)">
@@ -149,6 +150,26 @@
               }
               @for (error of backendErrorsForItemControl(index, 'itemTypeId'); track error) {
                 <small class="field-error">{{ error }}</small>
+              }
+
+              @if (shouldShowSize(index)) {
+                <select formControlName="size" aria-label="Talla o medida">
+                  <option value="">Selecciona talla</option>
+                  @for (size of sizeOptionsForItem(index); track size) {
+                    <option [value]="size">{{ size }}</option>
+                  }
+                </select>
+                @if (hasItemControlError(index, 'size', 'required')) {
+                  <small class="field-error">Debes seleccionar la talla.</small>
+                }
+                @if (hasItemControlError(index, 'size', 'maxlength')) {
+                  <small class="field-error">Maximo 40 caracteres.</small>
+                }
+                @for (error of backendErrorsForItemControl(index, 'size'); track error) {
+                  <small class="field-error">{{ error }}</small>
+                }
+              } @else {
+                <input type="text" value="Sin talla" disabled aria-label="Sin talla" />
               }
 
               <input type="number" min="1" formControlName="quantity" />
@@ -184,13 +205,15 @@
           }
         </label>
 
-        <label class="toggle-field field-full">
-          <input type="checkbox" formControlName="duplicateAcknowledged" />
-          <span>
-            Confirmo bajo mi responsabilidad una posible entrega duplicada al empleado.
-            Esta seleccion queda registrada como evidencia administrativa.
-          </span>
-        </label>
+        @if (selectedDeliveryType() === 'REGALOS') {
+          <label class="toggle-field field-full">
+            <input type="checkbox" formControlName="duplicateAcknowledged" />
+            <span>
+              Confirmo bajo mi responsabilidad una posible entrega duplicada al empleado.
+              Esta seleccion queda registrada como evidencia administrativa.
+            </span>
+          </label>
+      }
 
         <div class="field field-full">
           <span class="field-label">Evidencia de recibido</span>

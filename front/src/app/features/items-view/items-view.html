@@ -50,7 +50,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="6" class="empty-row">No hay implementos registrados.</td>
+            <td colspan="7" class="empty-row">No hay implementos registrados.</td>
           </tr>
         }
       </tbody>
@@ -142,7 +142,7 @@
 
         <label class="field">
           <span>Categoria</span>
-          <select formControlName="category">
+          <select formControlName="category" (change)="onCategoryChanged()">
             @for (category of itemCategories(); track category) {
               <option [value]="category">{{ itemCategoryLabel()[category] }}</option>
             }
@@ -151,6 +151,17 @@
             <small class="field-error">Debes seleccionar una categoria.</small>
           }
         </label>
+
+        @if (isDotacionCategory()) {
+          <label class="field">
+            <span>Tipo de talla</span>
+            <select formControlName="sizeType">
+              @for (sizeType of itemSizeTypes(); track sizeType) {
+                <option [value]="sizeType">{{ itemSizeTypeLabel()[sizeType] }}</option>
+              }
+            </select>
+          </label>
+        }
 
         <label class="field">
           <span>Costo unitario</span>

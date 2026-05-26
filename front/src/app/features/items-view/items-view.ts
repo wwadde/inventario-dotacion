@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ItemCategory, ItemType, StockMovement } from '../../core/dotacion.models';
+import { ItemCategory, ItemSizeType, ItemType, StockMovement } from '../../core/dotacion.models';
 
 @Component({
   selector: 'app-items-view',
@@ -22,6 +22,8 @@ export class ItemsView {
 
   itemCategories = input.required<ItemCategory[]>();
   itemCategoryLabel = input.required<Record<ItemCategory, string>>();
+  itemSizeTypes = input.required<ItemSizeType[]>();
+  itemSizeTypeLabel = input.required<Record<ItemSizeType, string>>();
 
   itemQuery = input('');
   filteredCount = input(0);
@@ -195,5 +197,15 @@ export class ItemsView {
   protected hasStockControlError(controlName: string, error: string): boolean {
     const control = this.stockForm.get(controlName);
     return !!control && control.touched && control.hasError(error);
+  }
+
+  protected isDotacionCategory(): boolean {
+    return this.itemForm().controls['category']?.value === 'DOTACION';
+  }
+
+  protected onCategoryChanged(): void {
+    if (!this.isDotacionCategory()) {
+      this.itemForm().controls['sizeType']?.setValue('NONE');
+    }
   }
 }

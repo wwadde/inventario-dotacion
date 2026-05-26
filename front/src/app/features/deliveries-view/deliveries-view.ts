@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Delivery, DeliveryType, Employee, ItemType, Requirement } from '../../core/dotacion.models';
+import { FormArray, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Delivery, DeliveryType, Employee, ItemSizeType, ItemType, Requirement } from '../../core/dotacion.models';
 import { SignaturePad } from '../../shared/signature-pad/signature-pad';
 import { CameraCapture } from '../../shared/camera-capture/camera-capture';
 
@@ -40,6 +40,26 @@ export class DeliveriesView {
   protected readonly formModalOpen = signal(false);
   protected readonly submitInProgress = signal(false);
   protected readonly evidenceMode = signal<'signature' | 'photo'>('signature');
+  protected readonly clothingSizes = ['XS', 'S', 'M', 'L', 'XL'];
+  protected readonly shoeSizes = [
+    '30',
+    '31',
+    '32',
+    '33',
+    '34',
+    '35',
+    '36',
+    '37',
+    '38',
+    '39',
+    '40',
+    '41',
+    '42',
+    '43',
+    '44',
+    '45',
+    '46',
+  ];
 
   constructor() {
     effect(() => {
@@ -141,14 +161,32 @@ export class DeliveriesView {
 
   protected resetItemsForCurrentMode(): void {
     const allowedItemIds = new Set(this.modeItems().map((item) => item.id));
-    for (const itemGroup of this.deliveryItems().controls) {
+    for (const itemGroupControl of this.deliveryItems().controls) {
+      const itemGroup = itemGroupControl as FormGroup;
       const itemTypeControl = itemGroup.get('itemTypeId');
       const quantityControl = itemGroup.get('quantity');
+      const sizeControl = itemGroup.get('size');
       const currentItemId = itemTypeControl?.value ?? '';
       if (currentItemId && !allowedItemIds.has(currentItemId)) {
         itemTypeControl?.setValue('');
         quantityControl?.setValue(1);
+        sizeControl?.setValue('');
+        this.applySizeValidators(itemGroup, 'NONE');
+        continue;
       }
+
+      const requirementSize = this.requirementSizeForItem(currentItemId);
+      if (sizeControl) {
+        if (requirementSize) {
+          sizeControl.setValue(requirementSize);
+          sizeControl.disable({ emitEvent: false });
+        } else {
+          sizeControl.enable({ emitEvent: false });
+          sizeControl.setValue('');
+        }
+      }
+
+      this.applySizeValidators(itemGroup, this.sizeTypeForItemId(currentItemId));
     }
   }
 
@@ -157,7 +195,7 @@ export class DeliveriesView {
       return;
     }
 
-    const itemGroup = this.deliveryItems().at(index);
+    const itemGroup = this.deliveryItems().at(index) as FormGroup | null;
     const itemTypeId = itemGroup?.get('itemTypeId')?.value ?? '';
     if (!itemTypeId) {
       return;
@@ -168,9 +206,39 @@ export class DeliveriesView {
       return;
     }
 
+    const requirementSize = this.requirementSizeForItem(itemTypeId);
+    const sizeControl = itemGroup?.get('size');
+    if (sizeControl) {
+      if (requirementSize) {
+        sizeControl.setValue(requirementSize);
+        sizeControl.disable({ emitEvent: false });
+      } else {
+        sizeControl.enable({ emitEvent: false });
+        sizeControl.setValue('');
+      }
+    }
+
+    this.applySizeValidators(itemGroup, item.sizeType);
+
     const pendingQuantity = this.pendingQuantityForItem(itemTypeId);
     const suggestedQuantity = Math.max(1, Math.min(pendingQuantity, item.availableStock));
     itemGroup?.get('quantity')?.setValue(suggestedQuantity);
+  }
+
+  protected shouldShowSize(index: number): boolean {
+    if (this.selectedDeliveryType() !== 'IMPLEMENTOS') {
+      return false;
+    }
+
+    const itemTypeId = this.deliveryItems().at(index)?.get('itemTypeId')?.value ?? '';
+    const sizeType = this.sizeTypeForItemId(itemTypeId);
+    return sizeType === 'ROPA' || sizeType === 'CALZADO';
+  }
+
+  protected sizeOptionsForItem(index: number): string[] {
+    const itemTypeId = this.deliveryItems().at(index)?.get('itemTypeId')?.value ?? '';
+    const sizeType = this.sizeTypeForItemId(itemTypeId);
+    return sizeType === 'CALZADO' ? this.shoeSizes : this.clothingSizes;
   }
 
   protected backendErrorsForControl(controlName: string): string[] {
@@ -240,5 +308,54 @@ export class DeliveriesView {
     }
 
     return pendingByItem;
+  }
+
+  private sizeTypeForItemId(itemTypeId: string): ItemSizeType {
+    if (!itemTypeId) {
+      return 'NONE';
+    }
+
+    const item = this.items().find((registeredItem) => registeredItem.id === itemTypeId);
+    return item?.sizeType ?? 'NONE';
+  }
+
+  private requirementSizeForItem(itemTypeId: string): string | null {
+    if (!itemTypeId || !this.selectedEmployeeId()) {
+      return null;
+    }
+
+    const requirement = this.requirements().find(
+      (entry) => entry.employeeId === this.selectedEmployeeId() && entry.itemTypeId === itemTypeId,
+    );
+
+    return requirement?.size ?? null;
+  }
+
+  private applySizeValidators(itemGroup: FormGroup | null, sizeType: ItemSizeType): void {
+    if (!itemGroup) {
+      return;
+    }
+
+    const sizeControl = itemGroup.get('size');
+    if (!sizeControl) {
+      return;
+    }
+
+    const requiresSize = this.selectedDeliveryType() === 'IMPLEMENTOS' && sizeType !== 'NONE';
+    const validators = requiresSize ? [Validators.required, Validators.maxLength(40)] : [Validators.maxLength(40)];
+    sizeControl.setValidators(validators);
+    sizeControl.updateValueAndValidity({ emitEvent: false });
+
+    if (!requiresSize) {
+      sizeControl.disable({ emitEvent: false });
+      if (sizeControl.value) {
+        sizeControl.setValue('');
+      }
+      return;
+    }
+
+    if (!sizeControl.disabled) {
+      sizeControl.enable({ emitEvent: false });
+    }
   }
 }

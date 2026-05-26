@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Employee, ItemType, Requirement, RequirementStatusFilter } from '../../core/dotacion.models';
+import { FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Employee, ItemSizeType, ItemType, Requirement, RequirementStatusFilter } from '../../core/dotacion.models';
 
 @Component({
   selector: 'app-requirements-view',
@@ -35,6 +35,26 @@ export class RequirementsView {
 
   protected readonly formModalOpen = signal(false);
   protected readonly submitInProgress = signal(false);
+  protected readonly clothingSizes = ['XS', 'S', 'M', 'L', 'XL'];
+  protected readonly shoeSizes = [
+    '30',
+    '31',
+    '32',
+    '33',
+    '34',
+    '35',
+    '36',
+    '37',
+    '38',
+    '39',
+    '40',
+    '41',
+    '42',
+    '43',
+    '44',
+    '45',
+    '46',
+  ];
 
   protected readonly dotacionItems = computed(() =>
     this.items().filter((item) => item.category === 'DOTACION'),
@@ -61,6 +81,7 @@ export class RequirementsView {
   protected openCreateModal(): void {
     this.cancelEdition.emit();
     this.formModalOpen.set(true);
+    this.onItemTypeChanged();
   }
 
   protected openEditModal(requirement: Requirement): void {
@@ -70,6 +91,7 @@ export class RequirementsView {
 
     this.editRequirement.emit(requirement);
     this.formModalOpen.set(true);
+    this.onItemTypeChanged();
   }
 
   protected canEditRequirement(requirement: Requirement): boolean {
@@ -103,5 +125,43 @@ export class RequirementsView {
   protected hasControlError(controlName: string, error: string): boolean {
     const control = this.requirementForm().get(controlName);
     return !!control && control.touched && control.hasError(error);
+  }
+
+  protected onItemTypeChanged(): void {
+    const itemTypeId = this.requirementForm().controls['itemTypeId']?.value ?? '';
+    const sizeType = this.sizeTypeForItemId(itemTypeId);
+    const sizeControl = this.requirementForm().get('size');
+    if (!sizeControl) {
+      return;
+    }
+
+    const requiresSize = sizeType !== 'NONE';
+    sizeControl.setValidators(requiresSize ? [Validators.required, Validators.maxLength(40)] : [Validators.maxLength(40)]);
+    sizeControl.updateValueAndValidity({ emitEvent: false });
+
+    if (!requiresSize) {
+      sizeControl.setValue('');
+    }
+  }
+
+  protected shouldShowSize(): boolean {
+    const itemTypeId = this.requirementForm().controls['itemTypeId']?.value ?? '';
+    const sizeType = this.sizeTypeForItemId(itemTypeId);
+    return sizeType === 'ROPA' || sizeType === 'CALZADO';
+  }
+
+  protected sizeOptionsForSelection(): string[] {
+    const itemTypeId = this.requirementForm().controls['itemTypeId']?.value ?? '';
+    const sizeType = this.sizeTypeForItemId(itemTypeId);
+    return sizeType === 'CALZADO' ? this.shoeSizes : this.clothingSizes;
+  }
+
+  private sizeTypeForItemId(itemTypeId: string): ItemSizeType {
+    if (!itemTypeId) {
+      return 'NONE';
+    }
+
+    const item = this.items().find((registeredItem) => registeredItem.id === itemTypeId);
+    return item?.sizeType ?? 'NONE';
   }
 }

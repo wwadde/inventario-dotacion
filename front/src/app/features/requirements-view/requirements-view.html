@@ -53,6 +53,7 @@
           <th>Documento</th>
           <th>Implemento</th>
           <th>Solicitado</th>
+          <th>Talla</th>
           <th>Notas</th>
           <th>Estado</th>
           <th>Cierre</th>
@@ -66,6 +67,7 @@
             <td>{{ requirement.employeeDocument }}</td>
             <td>{{ requirement.itemCode }} · {{ requirement.itemName }}</td>
             <td>{{ requirement.requestedQuantity }}</td>
+            <td>{{ requirement.size || 'N/A' }}</td>
             <td>{{ requirement.notes || 'N/A' }}</td>
             <td>
               <span
@@ -94,7 +96,7 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="8" class="empty-row">No hay solicitudes registradas.</td>
+            <td colspan="9" class="empty-row">No hay solicitudes registradas.</td>
           </tr>
         }
       </tbody>
@@ -132,7 +134,7 @@
 
         <label class="field field-full">
           <span>Implemento de dotacion</span>
-          <select formControlName="itemTypeId">
+          <select formControlName="itemTypeId" (change)="onItemTypeChanged()">
             <option value="">Selecciona un implemento</option>
             @for (item of dotacionItems(); track item.id) {
               <option [value]="item.id">{{ item.code }} · {{ item.name }}</option>
@@ -142,6 +144,24 @@
             <small class="field-error">Debes seleccionar un implemento.</small>
           }
         </label>
+
+        @if (shouldShowSize()) {
+          <label class="field">
+            <span>Talla requerida</span>
+            <select formControlName="size">
+              <option value="">Selecciona talla</option>
+              @for (size of sizeOptionsForSelection(); track size) {
+                <option [value]="size">{{ size }}</option>
+              }
+            </select>
+            @if (hasControlError('size', 'required')) {
+              <small class="field-error">Debes seleccionar la talla.</small>
+            }
+            @if (hasControlError('size', 'maxlength')) {
+              <small class="field-error">Maximo 40 caracteres.</small>
+            }
+          </label>
+        }
 
         <label class="field">
           <span>Cantidad solicitada</span>

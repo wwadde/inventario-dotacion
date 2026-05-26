@@ -84,6 +84,8 @@ export class App {
   protected readonly stockMovements = this.facade.stockMovements;
   protected readonly itemCategories = this.facade.itemCategories;
   protected readonly itemCategoryLabel = this.facade.itemCategoryLabel;
+  protected readonly itemSizeTypes = this.facade.itemSizeTypes;
+  protected readonly itemSizeTypeLabel = this.facade.itemSizeTypeLabel;
   protected readonly itemQuery = this.facade.itemQuery;
   protected readonly filteredItems = this.facade.filteredItems;
   protected readonly paginatedItems = this.facade.paginatedItems;
